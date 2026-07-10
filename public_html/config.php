@@ -1,7 +1,7 @@
 <?php
 return [
     'app_name' => 'Nexus API Store',
-    'base_url' => 'http://nexusapistore.com',
+    'base_url' => 'https://nexusapistore.com',
     'timezone' => 'UTC',
     'db' => [
         'driver' => 'pgsql',
@@ -20,7 +20,7 @@ return [
         'smtp_pass' => 'cqxwukteqruqvhmb',
     ],
     'google' => [
-        'client_id' => 'your-google-client-id.apps.googleusercontent.com',
+        'client_id' => '535856044931-qlqkjc7v8bfh4sgv3gm5c7f6abbqnpa0.apps.googleusercontent.com',
         'client_secret' => 'your-google-client-secret',
         'redirect_uri' => 'https://nexusapistore.com/oauth/google-callback.php',
     ],

@@ -20,7 +20,7 @@ return [
         'smtp_pass' => 'your-gmail-app-password',
     ],
     'google' => [
-        'client_id' => 'your-google-client-id.apps.googleusercontent.com',
+        'client_id' => '535856044931-qlqkjc7v8bfh4sgv3gm5c7f6abbqnpa0.apps.googleusercontent.com',
         'client_secret' => 'your-google-client-secret',
         'redirect_uri' => 'https://nexusapistore.com/oauth/google-callback.php',
     ],

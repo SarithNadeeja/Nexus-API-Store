@@ -32,6 +32,7 @@ require_once __DIR__ . '/UserService.php';
 require_once __DIR__ . '/AdminService.php';
 require_once __DIR__ . '/CoinPackageService.php';
 require_once __DIR__ . '/ApiKeyPoolService.php';
+require_once __DIR__ . '/GoogleOAuthService.php';
 require_once __DIR__ . '/VerificationService.php';
 
 try {

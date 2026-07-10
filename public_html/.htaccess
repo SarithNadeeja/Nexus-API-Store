@@ -10,6 +10,8 @@ RewriteRule ^api/ api/index.php [L,QSA]
 
 # Google OAuth aliases
 RewriteRule ^oauth2/authorization/google$ oauth/google-start.php [L,QSA]
+RewriteRule ^oauth/google-start$ oauth/google-start.php [L,QSA]
+RewriteRule ^oauth/google-callback$ oauth/google-callback.php [L,QSA]
 
 # Admin panel
 RewriteRule ^nexus-admin/?$ nexus-admin/index.php [L,QSA]

@@ -62,10 +62,11 @@ try {
         $user = Auth::requireVerifiedAppUser($pdo);
         $body = read_json_body();
         $apiId = (int) ($body['apiId'] ?? 0);
+        $quantity = (int) ($body['quantity'] ?? 1);
         if ($apiId <= 0) {
             json_error('API id is required.');
         }
-        json_response(UserService::purchase($pdo, $user, $apiId));
+        json_response(UserService::purchase($pdo, $user, $apiId, $quantity));
     } else {
         json_error('Endpoint not found.', 404);
     }

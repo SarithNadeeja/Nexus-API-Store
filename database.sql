@@ -104,8 +104,7 @@ CREATE TABLE IF NOT EXISTS api_purchases (
     expires_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_api_purchases_user FOREIGN KEY (user_id) REFERENCES app_users(id),
-    CONSTRAINT fk_api_purchases_api FOREIGN KEY (api_listing_id) REFERENCES api_listings(id),
-    CONSTRAINT uk_api_purchases_user_api UNIQUE (user_id, api_listing_id)
+    CONSTRAINT fk_api_purchases_api FOREIGN KEY (api_listing_id) REFERENCES api_listings(id)
 );
 
 CREATE TABLE IF NOT EXISTS email_verification_tokens (

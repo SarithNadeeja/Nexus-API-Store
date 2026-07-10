@@ -1684,3 +1684,136 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 900px) {
   .hero-grid { grid-template-columns: 1fr; }
 }
+
+.bulk-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.bulk-modal-card {
+  width: min(100%, 480px);
+  border-radius: 1.1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 12, 24, 0.98));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.bulk-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem 0.75rem;
+}
+
+.bulk-modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.bulk-modal-close {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #e2e8f0;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bulk-modal-body {
+  padding: 0 1.25rem 1.25rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.bulk-modal-api-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.bulk-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.bulk-modal-meta span {
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.bulk-modal-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bulk-modal-field span {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.bulk-modal-field input {
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(2, 6, 23, 0.65);
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.bulk-modal-total {
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  color: #cbd5e1;
+}
+
+.bulk-modal-error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.88rem;
+}
+
+.bulk-modal-summary {
+  display: grid;
+  gap: 0.35rem;
+  color: #cbd5e1;
+}
+
+.bulk-modal-actions,
+.bulk-modal-body .btn {
+  margin-top: 0.15rem;
+}
+
+.bulk-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.bulk-modal-body .bulk-download-btn,
+.bulk-modal-body .btn-secondary {
+  width: fit-content;
+}
+
+.marketplace-card .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}

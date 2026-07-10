@@ -130,15 +130,15 @@ final class UserService
         $result = [];
 
         foreach ($rows as $row) {
-            $purchased = false;
+            $purchasedCount = 0;
             if ($userId !== null) {
-                $check = $pdo->prepare('SELECT id FROM api_purchases WHERE user_id = ? AND api_listing_id = ?');
+                $check = $pdo->prepare('SELECT COUNT(*) FROM api_purchases WHERE user_id = ? AND api_listing_id = ?');
                 $check->execute([$userId, $row['id']]);
-                $purchased = (bool) $check->fetch();
+                $purchasedCount = (int) $check->fetchColumn();
             }
 
             $availableKeys = (int) $row['available_keys'];
-            if ($availableKeys === 0 && !$purchased) {
+            if ($availableKeys === 0 && $purchasedCount === 0) {
                 continue;
             }
 
@@ -151,7 +151,8 @@ final class UserService
                 'priceCoins' => (int) $row['price_coins'],
                 'expirationMonths' => (int) ($row['expiration_months'] ?? 1),
                 'availableKeys' => $availableKeys,
-                'purchased' => $purchased,
+                'purchased' => $purchasedCount > 0,
+                'purchasedCount' => $purchasedCount,
             ];
         }
 
@@ -243,9 +244,16 @@ final class UserService
         return self::buildSession($pdo, $stmt->fetch());
     }
 
-    public static function purchase(PDO $pdo, array $user, int $apiId): array
+    public static function purchase(PDO $pdo, array $user, int $apiId, int $quantity = 1): array
     {
         ApiKeyPoolService::ensureSchema($pdo);
+
+        if ($quantity < 1) {
+            throw new InvalidArgumentException('Quantity must be at least 1.');
+        }
+        if ($quantity > 100) {
+            throw new InvalidArgumentException('You can purchase up to 100 API keys at once.');
+        }
 
         $stmt = $pdo->prepare('SELECT * FROM api_listings WHERE id = ?');
         $stmt->execute([$apiId]);
@@ -257,15 +265,21 @@ final class UserService
             throw new InvalidArgumentException('This API is not available for purchase.');
         }
 
-        $check = $pdo->prepare('SELECT id FROM api_purchases WHERE user_id = ? AND api_listing_id = ?');
-        $check->execute([$user['id'], $apiId]);
-        if ($check->fetch()) {
-            throw new InvalidArgumentException('You already purchased this API.');
+        $available = ApiKeyPoolService::countsForListing($pdo, $apiId)['available'];
+        if ($available < $quantity) {
+            throw new InvalidArgumentException(
+                $available === 0
+                    ? 'This API is sold out. No keys are available right now.'
+                    : "Only {$available} key" . ($available === 1 ? ' is' : 's are') . ' available. Reduce your quantity.'
+            );
         }
 
         $price = (int) $api['price_coins'];
-        if ((int) $user['coin_balance'] < $price) {
-            throw new InvalidArgumentException('Not enough coins for this purchase.');
+        $totalCost = $price * $quantity;
+        if ((int) $user['coin_balance'] < $totalCost) {
+            throw new InvalidArgumentException(
+                "Not enough coins. You need {$totalCost} coins for {$quantity} key" . ($quantity === 1 ? '' : 's') . ' but have ' . (int) $user['coin_balance'] . '.'
+            );
         }
 
         $expirationMonths = (int) ($api['expiration_months'] ?? 1);
@@ -277,26 +291,40 @@ final class UserService
             ->format('Y-m-d H:i:s');
 
         $pdo->beginTransaction();
+        $purchasedKeys = [];
+        $purchaseIds = [];
+
         try {
-            $key = ApiKeyPoolService::claimKeyForPurchase($pdo, $apiId);
-            if (!$key) {
-                throw new InvalidArgumentException('This API is sold out. No keys are available right now.');
+            for ($i = 0; $i < $quantity; $i++) {
+                $key = ApiKeyPoolService::claimKeyForPurchase($pdo, $apiId);
+                if (!$key) {
+                    throw new InvalidArgumentException('Not enough API keys available for this quantity.');
+                }
+                $purchasedKeys[] = $key['key_link'];
             }
 
             $deduct = $pdo->prepare(
                 'UPDATE app_users SET coin_balance = coin_balance - ? WHERE id = ? AND coin_balance >= ?'
             );
-            $deduct->execute([$price, $user['id'], $price]);
+            $deduct->execute([$totalCost, $user['id'], $totalCost]);
             if ($deduct->rowCount() === 0) {
                 throw new InvalidArgumentException('Not enough coins for this purchase.');
             }
 
-            $pdo->prepare(
+            $insert = $pdo->prepare(
                 'INSERT INTO api_purchases (user_id, api_listing_id, coins_spent, purchased_key_snapshot, access_link_snapshot, expires_at)
                  VALUES (?, ?, ?, ?, ?, ?)'
-            )->execute([$user['id'], $apiId, $price, $key['key_link'], $key['key_link'], $expiresAt]);
-            $purchaseId = Database::lastInsertId($pdo, 'api_purchases');
-            self::addTransaction($pdo, (int) $user['id'], 'PURCHASE', -$price, 'Purchased ' . $api['name']);
+            );
+
+            foreach ($purchasedKeys as $keyLink) {
+                $insert->execute([$user['id'], $apiId, $price, $keyLink, $keyLink, $expiresAt]);
+                $purchaseIds[] = Database::lastInsertId($pdo, 'api_purchases');
+            }
+
+            $description = $quantity === 1
+                ? 'Purchased ' . $api['name']
+                : 'Purchased ' . $quantity . ' keys for ' . $api['name'];
+            self::addTransaction($pdo, (int) $user['id'], 'PURCHASE', -$totalCost, $description);
             $pdo->commit();
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -306,11 +334,15 @@ final class UserService
         }
 
         return [
-            'purchaseId' => $purchaseId,
+            'purchaseIds' => $purchaseIds,
+            'purchaseId' => $purchaseIds[0] ?? 0,
+            'quantity' => count($purchasedKeys),
             'apiName' => $api['name'],
-            'coinsSpent' => $price,
-            'purchasedKey' => $key['key_link'],
-            'accessLink' => $key['key_link'],
+            'coinsSpent' => $totalCost,
+            'unitPriceCoins' => $price,
+            'purchasedKeys' => $purchasedKeys,
+            'purchasedKey' => $purchasedKeys[0] ?? '',
+            'accessLink' => $purchasedKeys[0] ?? '',
             'expirationMonths' => $expirationMonths,
             'expiresAt' => date('c', strtotime($expiresAt)),
             'purchasedAt' => date('c'),

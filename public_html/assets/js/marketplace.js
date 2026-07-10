@@ -1,3 +1,226 @@
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[ch]);
+}
+
+function formatCoins(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function downloadApiKeysTxt(apiName, keys) {
+  const safeName = String(apiName || 'api_keys').replace(/[^a-z0-9_-]+/gi, '_').replace(/_+/g, '_');
+  const header = [
+    `# ${apiName}`,
+    `# Purchased: ${new Date().toLocaleString()}`,
+    `# Total keys: ${keys.length}`,
+    '',
+  ].join('\n');
+  const content = `${header}${keys.join('\n')}\n`;
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${safeName}_api_keys.txt`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function closeBulkPurchaseModal() {
+  document.getElementById('bulk-purchase-modal')?.remove();
+}
+
+function showBulkPurchaseSuccess(result) {
+  const keys = Array.isArray(result.purchasedKeys) ? result.purchasedKeys : [];
+  const quantity = result.quantity || keys.length || 1;
+  const overlay = document.createElement('div');
+  overlay.className = 'bulk-modal-overlay';
+  overlay.id = 'bulk-purchase-success-modal';
+  overlay.innerHTML = `
+    <div class="bulk-modal-card" role="dialog" aria-modal="true" aria-labelledby="bulk-success-title">
+      <div class="bulk-modal-header">
+        <h3 id="bulk-success-title">Purchase Successful</h3>
+        <button class="bulk-modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="bulk-modal-body">
+        <p>You bought <strong>${quantity}</strong> API key${quantity === 1 ? '' : 's'} for <strong>${escapeHtml(result.apiName || 'this API')}</strong>.</p>
+        <p class="bulk-modal-summary">
+          <span>Total spent: <strong>${formatCoins(result.coinsSpent)} coins</strong></span>
+          <span>Expires: <strong>${result.expirationMonths || 1} month${(result.expirationMonths || 1) === 1 ? '' : 's'} from purchase</strong></span>
+        </p>
+        ${quantity > 1 ? `
+          <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
+            Download ${quantity} API Links (.txt)
+          </button>
+        ` : `
+          <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
+            Download API Link (.txt)
+          </button>
+        `}
+        <a class="btn btn-secondary btn-sm" href="/dashboard.html#my-api-keys">View in Dashboard</a>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  overlay.querySelector('.bulk-modal-close')?.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) overlay.remove();
+  });
+
+  overlay.querySelector('#bulk-download-keys-btn')?.addEventListener('click', () => {
+    downloadApiKeysTxt(result.apiName, keys);
+  });
+}
+
+function openBulkPurchaseModal(api, onConfirm) {
+  closeBulkPurchaseModal();
+
+  const user = NexusAuth.user;
+  const balance = Number(user?.coinBalance || 0);
+  const maxByStock = Number(api.availableKeys || 1);
+  const maxByCoins = api.priceCoins > 0 ? Math.floor(balance / api.priceCoins) : 0;
+  const maxQuantity = Math.max(0, Math.min(maxByStock, maxByCoins, 100));
+  const defaultQty = maxQuantity > 0 ? 1 : 0;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'bulk-modal-overlay';
+  overlay.id = 'bulk-purchase-modal';
+  overlay.innerHTML = `
+    <div class="bulk-modal-card" role="dialog" aria-modal="true" aria-labelledby="bulk-purchase-title">
+      <div class="bulk-modal-header">
+        <h3 id="bulk-purchase-title">Buy API Keys</h3>
+        <button class="bulk-modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="bulk-modal-body">
+        <p class="bulk-modal-api-name">${escapeHtml(api.name)}</p>
+        <div class="bulk-modal-meta">
+          <span>${formatCoins(api.priceCoins)} coins each</span>
+          <span>${formatCoins(api.availableKeys)} available</span>
+          <span>Your balance: ${formatCoins(balance)} coins</span>
+        </div>
+        <label class="bulk-modal-field">
+          <span>How many API keys do you want?</span>
+          <input
+            type="number"
+            id="bulk-purchase-qty"
+            min="1"
+            max="${Math.max(maxQuantity, 1)}"
+            value="${defaultQty || 1}"
+            ${maxQuantity === 0 ? 'disabled' : ''}
+          >
+        </label>
+        <div class="bulk-modal-total" id="bulk-purchase-total">
+          Total: <strong>0 coins</strong>
+        </div>
+        <p class="bulk-modal-error" id="bulk-purchase-error" hidden></p>
+        <div class="bulk-modal-actions">
+          <button class="btn btn-secondary btn-sm" type="button" id="bulk-purchase-cancel">Cancel</button>
+          <button class="btn btn-primary btn-sm" type="button" id="bulk-purchase-confirm" ${maxQuantity === 0 ? 'disabled' : ''}>
+            Confirm Purchase
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const qtyInput = overlay.querySelector('#bulk-purchase-qty');
+  const totalEl = overlay.querySelector('#bulk-purchase-total');
+  const errorEl = overlay.querySelector('#bulk-purchase-error');
+  const confirmBtn = overlay.querySelector('#bulk-purchase-confirm');
+
+  const updateSummary = () => {
+    const qty = Math.max(1, Math.floor(Number(qtyInput.value) || 1));
+    const total = qty * api.priceCoins;
+    const validStock = qty <= maxByStock;
+    const validCoins = total <= balance;
+    const validMax = qty <= 100;
+
+    totalEl.innerHTML = `Total: <strong>${formatCoins(total)} coins</strong>`;
+
+    if (!validStock) {
+      errorEl.hidden = false;
+      errorEl.textContent = `Only ${formatCoins(maxByStock)} key${maxByStock === 1 ? '' : 's'} available.`;
+      confirmBtn.disabled = true;
+      return;
+    }
+    if (!validCoins) {
+      errorEl.hidden = false;
+      errorEl.textContent = `You need ${formatCoins(total)} coins but only have ${formatCoins(balance)}.`;
+      confirmBtn.disabled = true;
+      return;
+    }
+    if (!validMax) {
+      errorEl.hidden = false;
+      errorEl.textContent = 'Maximum 100 keys per purchase.';
+      confirmBtn.disabled = true;
+      return;
+    }
+
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+    confirmBtn.disabled = false;
+  };
+
+  qtyInput?.addEventListener('input', updateSummary);
+  updateSummary();
+
+  overlay.querySelector('.bulk-modal-close')?.addEventListener('click', closeBulkPurchaseModal);
+  overlay.querySelector('#bulk-purchase-cancel')?.addEventListener('click', closeBulkPurchaseModal);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) closeBulkPurchaseModal();
+  });
+
+  confirmBtn?.addEventListener('click', async () => {
+    const quantity = Math.max(1, Math.floor(Number(qtyInput.value) || 1));
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Processing...';
+    errorEl.hidden = true;
+
+    try {
+      await onConfirm(quantity);
+      closeBulkPurchaseModal();
+    } catch (err) {
+      errorEl.hidden = false;
+      errorEl.textContent = err.message || 'Purchase failed.';
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Confirm Purchase';
+    }
+  });
+}
+
+function renderMarketplaceActions(api) {
+  const parts = [];
+
+  if (api.availableKeys > 0) {
+    parts.push(`
+      <button
+        class="btn btn-primary btn-sm buy-api-btn"
+        data-api-id="${api.id}"
+        data-api-name="${escapeHtml(api.name)}"
+        data-price-coins="${api.priceCoins}"
+        data-available-keys="${api.availableKeys}"
+        data-expiration-months="${api.expirationMonths}"
+        type="button"
+      >${api.purchased ? 'Buy More Keys' : 'Buy with Coins'}</button>
+    `);
+  }
+
+  if (api.purchased) {
+    parts.push('<a class="btn btn-secondary btn-sm" href="/dashboard.html#my-api-keys">View Your Keys</a>');
+  }
+
+  if (!api.availableKeys && !api.purchased) {
+    parts.push('<button class="btn btn-secondary btn-sm" type="button" disabled>Sold Out</button>');
+  }
+
+  return parts.join('');
+}
+
 async function renderMarketplace(containerId, options = {}) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -45,26 +268,23 @@ async function renderMarketplace(containerId, options = {}) {
         <div class="tag-row">
           <span class="mini-tag">Auth: API Key</span>
           <span class="mini-tag">Format: JSON</span>
-          <span class="mini-tag mini-tag-amber">${api.priceCoins} coins</span>
+          <span class="mini-tag mini-tag-amber">${api.priceCoins} coins each</span>
           <span class="mini-tag">${api.expirationMonths} month${api.expirationMonths === 1 ? '' : 's'} access</span>
           ${api.availableKeys > 0 ? `<span class="mini-tag mini-tag-cyan">${api.availableKeys} keys left</span>` : '<span class="mini-tag">Sold out</span>'}
+          ${api.purchased ? `<span class="mini-tag">You own ${api.purchasedCount || 1}</span>` : ''}
         </div>
         <div class="endpoint-box">
           <div class="endpoint-title">◎ Secure delivery after purchase</div>
-          <div class="endpoint-url">API access links stay hidden until you buy. Access lasts for ${api.expirationMonths} month${api.expirationMonths === 1 ? '' : 's'} from purchase.</div>
+          <div class="endpoint-url">Buy one or many keys at once. Bulk purchases can be downloaded as a .txt file.</div>
         </div>
         <div class="card-actions">
-          ${api.purchased
-            ? '<a class="btn btn-primary btn-sm" href="/dashboard.html#my-api-keys">View Your API Key</a>'
-            : api.availableKeys > 0
-              ? `<button class="btn btn-primary btn-sm buy-api-btn" data-api-id="${api.id}" type="button">Buy with Coins</button>`
-              : '<button class="btn btn-secondary btn-sm" type="button" disabled>Sold Out</button>'}
+          ${renderMarketplaceActions(api)}
         </div>
       </article>
     `).join('');
 
     footer.innerHTML = user
-      ? `Signed in as <strong>${escapeHtml(user.fullName)}</strong> with <span class="text-cyan">${user.coinBalance} coins</span>.`
+      ? `Signed in as <strong>${escapeHtml(user.fullName)}</strong> with <span class="text-cyan">${formatCoins(user.coinBalance)} coins</span>.`
       : 'Sign in to recharge coins and instantly purchase API keys.';
 
     grid.querySelectorAll('.buy-api-btn').forEach((btn) => {
@@ -73,18 +293,21 @@ async function renderMarketplace(containerId, options = {}) {
           location.href = '/login.html';
           return;
         }
-        btn.disabled = true;
-        btn.textContent = 'Processing...';
-        try {
-          await NexusApi.purchase(Number(btn.dataset.apiId));
+
+        const api = {
+          id: Number(btn.dataset.apiId),
+          name: btn.dataset.apiName || 'API',
+          priceCoins: Number(btn.dataset.priceCoins) || 0,
+          availableKeys: Number(btn.dataset.availableKeys) || 0,
+          expirationMonths: Number(btn.dataset.expirationMonths) || 1,
+        };
+
+        openBulkPurchaseModal(api, async (quantity) => {
+          const result = await NexusApi.purchase(api.id, quantity);
           await NexusAuth.refresh();
-          alert('Purchase successful. Your private API link is now available in your dashboard.');
-          location.href = '/dashboard.html#my-api-keys';
-        } catch (err) {
-          alert(err.message);
-          btn.disabled = false;
-          btn.textContent = 'Buy with Coins';
-        }
+          showBulkPurchaseSuccess(result);
+          await renderMarketplace(containerId, options);
+        });
       });
     });
 
@@ -94,10 +317,5 @@ async function renderMarketplace(containerId, options = {}) {
   }
 }
 
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[ch]);
-}
-
 window.renderMarketplace = renderMarketplace;
+window.downloadApiKeysTxt = downloadApiKeysTxt;

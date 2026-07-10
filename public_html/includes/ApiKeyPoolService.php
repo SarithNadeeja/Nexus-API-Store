@@ -49,6 +49,12 @@ final class ApiKeyPoolService
         }
 
         try {
+            $pdo->exec('ALTER TABLE api_purchases DROP CONSTRAINT IF EXISTS uk_api_purchases_user_api');
+        } catch (Throwable $e) {
+            // Constraint may already be removed.
+        }
+
+        try {
             $pdo->exec(
                 "UPDATE api_purchases p
                  SET expires_at = p.created_at + (COALESCE(a.expiration_months, 1) || ' months')::interval

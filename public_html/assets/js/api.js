@@ -32,6 +32,9 @@ window.NexusApi = {
     method: 'POST',
     body: JSON.stringify({ coins, packageId, custom }),
   }),
-  purchase: (apiId) => apiRequest('/user/purchases', { method: 'POST', body: JSON.stringify({ apiId }) }),
+  purchase: (apiId, quantity = 1) => apiRequest('/user/purchases', {
+    method: 'POST',
+    body: JSON.stringify({ apiId, quantity }),
+  }),
   getPurchases: () => apiRequest('/user/purchases'),
 };

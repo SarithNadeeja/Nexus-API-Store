@@ -36,6 +36,35 @@ final class ApiKeyPoolService
             // Column may already be wide enough.
         }
 
+        try {
+            $pdo->exec('ALTER TABLE api_listings ADD COLUMN IF NOT EXISTS expiration_months INTEGER NOT NULL DEFAULT 1');
+        } catch (Throwable $e) {
+            // Column may already exist.
+        }
+
+        try {
+            $pdo->exec('ALTER TABLE api_purchases ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP NULL');
+        } catch (Throwable $e) {
+            // Column may already exist.
+        }
+
+        try {
+            $pdo->exec(
+                "UPDATE api_purchases p
+                 SET expires_at = p.created_at + (COALESCE(a.expiration_months, 1) || ' months')::interval
+                 FROM api_listings a
+                 WHERE p.api_listing_id = a.id AND p.expires_at IS NULL"
+            );
+        } catch (Throwable $e) {
+            // Backfill is best-effort for legacy rows.
+        }
+
+        try {
+            $pdo->exec("DELETE FROM api_key_inventory WHERE status = 'ASSIGNED'");
+        } catch (Throwable $e) {
+            // Pool may not exist yet on first run.
+        }
+
         self::migrateLegacyListingKeys($pdo);
     }
 
@@ -51,8 +80,8 @@ final class ApiKeyPoolService
 
         $check = $pdo->prepare('SELECT id FROM api_key_inventory WHERE api_listing_id = ? LIMIT 1');
         $insert = $pdo->prepare(
-            'INSERT INTO api_key_inventory (api_listing_id, key_link, status, assigned_user_id, assigned_at)
-             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)'
+            'INSERT INTO api_key_inventory (api_listing_id, key_link, status)
+             VALUES (?, ?, \'AVAILABLE\')'
         );
 
         foreach ($stmt->fetchAll() as $row) {
@@ -69,17 +98,12 @@ final class ApiKeyPoolService
             $purchaseRow = $purchase->fetch();
 
             if ($purchaseRow) {
-                $insert->execute([
-                    $listingId,
-                    $row['api_key_value'],
-                    'ASSIGNED',
-                    (int) $purchaseRow['user_id'],
-                ]);
-                $pdo->prepare('UPDATE api_key_inventory SET api_purchase_id = ? WHERE api_listing_id = ? AND key_link = ?')
-                    ->execute([(int) $purchaseRow['id'], $listingId, $row['api_key_value']]);
-            } else {
-                $insert->execute([$listingId, $row['api_key_value'], 'AVAILABLE', null]);
+                $pdo->prepare('UPDATE api_listings SET api_key_value = ? WHERE id = ?')
+                    ->execute([self::POOL_MARKER, $listingId]);
+                continue;
             }
+
+            $insert->execute([$listingId, $row['api_key_value']]);
 
             $pdo->prepare('UPDATE api_listings SET api_key_value = ? WHERE id = ?')
                 ->execute([self::POOL_MARKER, $listingId]);
@@ -136,34 +160,35 @@ final class ApiKeyPoolService
     {
         self::ensureSchema($pdo);
         $stmt = $pdo->prepare(
-            "SELECT
-                COUNT(*)::int AS total_keys,
-                COUNT(*) FILTER (WHERE status = 'AVAILABLE')::int AS available_keys,
-                COUNT(*) FILTER (WHERE status = 'ASSIGNED')::int AS assigned_keys
-             FROM api_key_inventory
-             WHERE api_listing_id = ?"
+            'SELECT
+                (SELECT COUNT(*)::int FROM api_key_inventory WHERE api_listing_id = ?) AS available_keys,
+                (SELECT COUNT(*)::int FROM api_purchases WHERE api_listing_id = ?) AS sold_keys'
         );
-        $stmt->execute([$listingId]);
-        $row = $stmt->fetch() ?: ['total_keys' => 0, 'available_keys' => 0, 'assigned_keys' => 0];
+        $stmt->execute([$listingId, $listingId]);
+        $row = $stmt->fetch() ?: ['available_keys' => 0, 'sold_keys' => 0];
+
+        $available = (int) $row['available_keys'];
+        $sold = (int) $row['sold_keys'];
 
         return [
-            'total' => (int) $row['total_keys'],
-            'available' => (int) $row['available_keys'],
-            'assigned' => (int) $row['assigned_keys'],
+            'total' => $available + $sold,
+            'available' => $available,
+            'assigned' => $sold,
+            'sold' => $sold,
         ];
     }
 
-    public static function assignKeyForPurchase(PDO $pdo, int $listingId, int $userId): ?array
+    public static function claimKeyForPurchase(PDO $pdo, int $listingId): ?array
     {
         self::ensureSchema($pdo);
 
         $stmt = $pdo->prepare(
-            "SELECT id, key_link
+            'SELECT id, key_link
              FROM api_key_inventory
-             WHERE api_listing_id = ? AND status = 'AVAILABLE'
+             WHERE api_listing_id = ?
              ORDER BY id ASC
              LIMIT 1
-             FOR UPDATE SKIP LOCKED"
+             FOR UPDATE SKIP LOCKED'
         );
         $stmt->execute([$listingId]);
         $key = $stmt->fetch();
@@ -171,19 +196,10 @@ final class ApiKeyPoolService
             return null;
         }
 
-        $pdo->prepare(
-            "UPDATE api_key_inventory
-             SET status = 'ASSIGNED', assigned_user_id = ?, assigned_at = CURRENT_TIMESTAMP
-             WHERE id = ?"
-        )->execute([$userId, (int) $key['id']]);
+        $pdo->prepare('DELETE FROM api_key_inventory WHERE id = ?')
+            ->execute([(int) $key['id']]);
 
         return $key;
-    }
-
-    public static function attachPurchaseToKey(PDO $pdo, int $inventoryId, int $purchaseId): void
-    {
-        $pdo->prepare('UPDATE api_key_inventory SET api_purchase_id = ? WHERE id = ?')
-            ->execute([$purchaseId, $inventoryId]);
     }
 
     public static function deleteByListing(PDO $pdo, int $listingId): void

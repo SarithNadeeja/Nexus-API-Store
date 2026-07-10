@@ -117,13 +117,13 @@ final class UserService
         ApiKeyPoolService::ensureSchema($pdo);
         $userId = Auth::appUserId();
         $stmt = $pdo->query(
-            "SELECT a.id, a.name, a.description, a.access_link, a.status, a.price_coins, c.name AS category,
-                    COUNT(k.id) FILTER (WHERE k.status = 'AVAILABLE')::int AS available_keys
+            "SELECT a.id, a.name, a.description, a.status, a.price_coins, a.expiration_months, c.name AS category,
+                    COUNT(k.id)::int AS available_keys
              FROM api_listings a
              JOIN categories c ON c.id = a.category_id
              LEFT JOIN api_key_inventory k ON k.api_listing_id = a.id
              WHERE a.status = 'ACTIVE'
-             GROUP BY a.id, c.name
+             GROUP BY a.id, c.name, a.expiration_months
              ORDER BY a.id ASC"
         );
         $rows = $stmt->fetchAll();
@@ -148,8 +148,8 @@ final class UserService
                 'description' => $row['description'],
                 'category' => $row['category'],
                 'status' => $row['status'],
-                'endpointUrl' => $row['access_link'],
                 'priceCoins' => (int) $row['price_coins'],
+                'expirationMonths' => (int) ($row['expiration_months'] ?? 1),
                 'availableKeys' => $availableKeys,
                 'purchased' => $purchased,
             ];
@@ -268,9 +268,17 @@ final class UserService
             throw new InvalidArgumentException('Not enough coins for this purchase.');
         }
 
+        $expirationMonths = (int) ($api['expiration_months'] ?? 1);
+        if ($expirationMonths < 1) {
+            $expirationMonths = 1;
+        }
+        $expiresAt = (new DateTimeImmutable('now'))
+            ->modify('+' . $expirationMonths . ' months')
+            ->format('Y-m-d H:i:s');
+
         $pdo->beginTransaction();
         try {
-            $key = ApiKeyPoolService::assignKeyForPurchase($pdo, $apiId, (int) $user['id']);
+            $key = ApiKeyPoolService::claimKeyForPurchase($pdo, $apiId);
             if (!$key) {
                 throw new InvalidArgumentException('This API is sold out. No keys are available right now.');
             }
@@ -284,11 +292,10 @@ final class UserService
             }
 
             $pdo->prepare(
-                'INSERT INTO api_purchases (user_id, api_listing_id, coins_spent, purchased_key_snapshot, access_link_snapshot)
-                 VALUES (?, ?, ?, ?, ?)'
-            )->execute([$user['id'], $apiId, $price, $key['key_link'], $api['access_link']]);
+                'INSERT INTO api_purchases (user_id, api_listing_id, coins_spent, purchased_key_snapshot, access_link_snapshot, expires_at)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            )->execute([$user['id'], $apiId, $price, $key['key_link'], $key['key_link'], $expiresAt]);
             $purchaseId = Database::lastInsertId($pdo, 'api_purchases');
-            ApiKeyPoolService::attachPurchaseToKey($pdo, (int) $key['id'], $purchaseId);
             self::addTransaction($pdo, (int) $user['id'], 'PURCHASE', -$price, 'Purchased ' . $api['name']);
             $pdo->commit();
         } catch (Throwable $e) {
@@ -303,7 +310,9 @@ final class UserService
             'apiName' => $api['name'],
             'coinsSpent' => $price,
             'purchasedKey' => $key['key_link'],
-            'accessLink' => $api['access_link'],
+            'accessLink' => $key['key_link'],
+            'expirationMonths' => $expirationMonths,
+            'expiresAt' => date('c', strtotime($expiresAt)),
             'purchasedAt' => date('c'),
         ];
     }
@@ -337,28 +346,56 @@ final class UserService
         return $stmt->fetch();
     }
 
-    private static function buildSession(PDO $pdo, array $user): array
+    private static function loadPurchases(PDO $pdo, int $userId): array
     {
         $purchasesStmt = $pdo->prepare(
-            'SELECT p.id, p.coins_spent, p.purchased_key_snapshot, p.access_link_snapshot, p.created_at, a.name AS api_name
+            'SELECT p.id, p.coins_spent, p.purchased_key_snapshot, p.access_link_snapshot, p.created_at, p.expires_at,
+                    a.name AS api_name, a.expiration_months
              FROM api_purchases p
              JOIN api_listings a ON a.id = p.api_listing_id
              WHERE p.user_id = ?
              ORDER BY p.created_at DESC'
         );
-        $purchasesStmt->execute([$user['id']]);
+        $purchasesStmt->execute([$userId]);
         $purchases = [];
         foreach ($purchasesStmt->fetchAll() as $p) {
+            $expirationMonths = (int) ($p['expiration_months'] ?? 1);
+            if ($expirationMonths < 1) {
+                $expirationMonths = 1;
+            }
+
+            $expiresAt = $p['expires_at'] ?? null;
+            if (!$expiresAt) {
+                $expiresAt = date('Y-m-d H:i:s', strtotime($p['created_at'] . ' +' . $expirationMonths . ' months'));
+            }
+
+            $expiresTimestamp = strtotime((string) $expiresAt);
             $purchases[] = [
                 'purchaseId' => (int) $p['id'],
                 'apiName' => $p['api_name'],
                 'coinsSpent' => (int) $p['coins_spent'],
                 'purchasedKey' => $p['purchased_key_snapshot'],
                 'accessLink' => $p['access_link_snapshot'],
+                'expirationMonths' => $expirationMonths,
+                'expiresAt' => date('c', $expiresTimestamp),
+                'isExpired' => $expiresTimestamp < time(),
                 'purchasedAt' => date('c', strtotime($p['created_at'])),
             ];
         }
 
+        return $purchases;
+    }
+
+    public static function getUserPurchases(PDO $pdo, array $user): array
+    {
+        return [
+            'purchases' => self::loadPurchases($pdo, (int) $user['id']),
+        ];
+    }
+
+    private static function buildSession(PDO $pdo, array $user): array
+    {
+        $purchases = self::loadPurchases($pdo, (int) $user['id']);
         $txStmt = $pdo->prepare(
             'SELECT transaction_type, coin_amount, description, created_at
              FROM coin_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 10'

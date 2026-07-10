@@ -94,7 +94,8 @@ if ($section === 'apis') {
         $counts = ApiKeyPoolService::countsForListing($pdo, (int) $apiRow['id']);
         $apiRow['key_total'] = $counts['total'];
         $apiRow['key_available'] = $counts['available'];
-        $apiRow['key_assigned'] = $counts['assigned'];
+        $apiRow['key_assigned'] = $counts['sold'];
+        $apiRow['key_sold'] = $counts['sold'];
         if ($editApiId > 0 && (int) $apiRow['id'] === $editApiId) {
             $editApi = $apiRow;
             $editApiKeyCounts = $counts;
@@ -535,7 +536,7 @@ $username = Auth::adminUsername();
                 <div class="panel-title-row" style="margin-bottom:1rem;">
                     <div>
                         <h4 id="api-form-title"><?= $editApi ? 'Update API Listing' : 'Add API Listing' ?></h4>
-                        <p class="muted" style="margin:0.35rem 0 0;">One listing name and category can hold many unique API key links. Each link is assigned to one customer on purchase.</p>
+                        <p class="muted" style="margin:0.35rem 0 0;">One listing name and category can hold many unique API key links. Each purchased key expires after the selected number of months.</p>
                     </div>
                     <?php if ($editApi): ?>
                         <a class="btn btn-secondary btn-sm" href="?section=apis">Add New Listing</a>
@@ -561,7 +562,8 @@ $username = Auth::adminUsername();
                         </select>
                     </label>
                     <label>Price (coins)<input type="number" name="price_coins" id="api-price" min="1" value="<?= $editApi ? (int) $editApi['price_coins'] : 50 ?>" required></label>
-                    <label class="full-span">Documentation / Access Link<input name="access_link" id="api-access" required placeholder="https://docs.nexus.dev/..." value="<?= $editApi ? h($editApi['access_link']) : '' ?>"></label>
+                    <label>Expiration (months)<input type="number" name="expiration_months" id="api-expiration-months" min="1" max="120" value="<?= $editApi ? (int) ($editApi['expiration_months'] ?? 1) : 1 ?>" required></label>
+                    <span class="field-hint full-span">Each sold API key will expire this many months after a customer purchases it.</span>
                     <label class="full-span">Description<textarea name="description" id="api-description" rows="3"><?= $editApi ? h($editApi['description'] ?? '') : '' ?></textarea></label>
                     <label class="full-span">
                         <?= $editApi ? 'Add More API Key Links' : 'API Key Links' ?>
@@ -573,8 +575,8 @@ $username = Auth::adminUsername();
                         <div class="full-span key-pool-stats">
                             <strong>Key pool:</strong>
                             <span class="pill pill-emerald"><?= (int) $editApiKeyCounts['available'] ?> available</span>
-                            <span class="pill"><?= (int) $editApiKeyCounts['assigned'] ?> assigned</span>
-                            <span class="pill pill-cyan"><?= (int) $editApiKeyCounts['total'] ?> total</span>
+                            <span class="pill"><?= (int) $editApiKeyCounts['sold'] ?> sold</span>
+                            <span class="pill pill-cyan"><?= (int) $editApiKeyCounts['total'] ?> uploaded</span>
                         </div>
                     <?php endif; ?>
                     <div class="full-span form-actions">
@@ -595,15 +597,16 @@ $username = Auth::adminUsername();
                     </label>
                 </div>
                 <table>
-                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Available</th><th>Total Keys</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Expires In</th><th>Available</th><th>Sold</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="api-table-body">
                     <?php foreach ($apis as $api): ?>
                         <tr data-row>
                             <td><?= h($api['name']) ?></td>
                             <td><?= h($api['category_name']) ?></td>
                             <td><?= (int) $api['price_coins'] ?> coins</td>
+                            <td><?= (int) ($api['expiration_months'] ?? 1) ?> mo</td>
                             <td><span class="pill <?= (int) ($api['key_available'] ?? 0) > 0 ? 'pill-emerald' : 'pill-amber' ?>"><?= (int) ($api['key_available'] ?? 0) ?></span></td>
-                            <td><?= (int) ($api['key_total'] ?? 0) ?></td>
+                            <td><?= (int) ($api['key_sold'] ?? 0) ?></td>
                             <td><?= h($api['status']) ?></td>
                             <td>
                                 <div class="table-actions">
@@ -617,7 +620,7 @@ $username = Auth::adminUsername();
                                         data-status="<?= h($api['status']) ?>"
                                         data-category-id="<?= (int) $api['category_id'] ?>"
                                         data-price="<?= (int) $api['price_coins'] ?>"
-                                        data-access="<?= h($api['access_link']) ?>"
+                                        data-expiration-months="<?= (int) ($api['expiration_months'] ?? 1) ?>"
                                         data-description="<?= h($api['description'] ?? '') ?>"
                                         data-available="<?= (int) ($api['key_available'] ?? 0) ?>"
                                         data-assigned="<?= (int) ($api['key_assigned'] ?? 0) ?>"
@@ -635,7 +638,7 @@ $username = Auth::adminUsername();
                     <?php endforeach; ?>
                     <?php if (!$apis): ?>
                         <tr>
-                            <td colspan="7" class="empty-copy">No API listings yet. Create one above and paste your key links.</td>
+                            <td colspan="8" class="empty-copy">No API listings yet. Create one above and paste your key links.</td>
                         </tr>
                     <?php endif; ?>
                     </tbody>

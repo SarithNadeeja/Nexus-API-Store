@@ -55,6 +55,9 @@ try {
         $packageId = isset($body['packageId']) ? (int) $body['packageId'] : null;
         $custom = !empty($body['custom']);
         json_response(UserService::recharge($pdo, $user, $coins, $packageId ?: null, $custom));
+    } elseif ($path === '/api/user/purchases' && $method === 'GET') {
+        $user = Auth::requireVerifiedAppUser($pdo);
+        json_response(UserService::getUserPurchases($pdo, $user));
     } elseif ($path === '/api/user/purchases' && $method === 'POST') {
         $user = Auth::requireVerifiedAppUser($pdo);
         $body = read_json_body();

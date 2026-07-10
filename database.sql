@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS api_listings (
     api_key_value VARCHAR(255) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     price_coins INTEGER NOT NULL DEFAULT 50,
+    expiration_months INTEGER NOT NULL DEFAULT 1,
     category_id BIGINT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_api_listings_category FOREIGN KEY (category_id) REFERENCES categories(id)
@@ -100,6 +101,7 @@ CREATE TABLE IF NOT EXISTS api_purchases (
     coins_spent INTEGER NOT NULL,
     purchased_key_snapshot VARCHAR(500) NOT NULL,
     access_link_snapshot VARCHAR(500) NOT NULL,
+    expires_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_api_purchases_user FOREIGN KEY (user_id) REFERENCES app_users(id),
     CONSTRAINT fk_api_purchases_api FOREIGN KEY (api_listing_id) REFERENCES api_listings(id),

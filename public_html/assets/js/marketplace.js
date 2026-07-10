@@ -46,16 +46,16 @@ async function renderMarketplace(containerId, options = {}) {
           <span class="mini-tag">Auth: API Key</span>
           <span class="mini-tag">Format: JSON</span>
           <span class="mini-tag mini-tag-amber">${api.priceCoins} coins</span>
+          <span class="mini-tag">${api.expirationMonths} month${api.expirationMonths === 1 ? '' : 's'} access</span>
           ${api.availableKeys > 0 ? `<span class="mini-tag mini-tag-cyan">${api.availableKeys} keys left</span>` : '<span class="mini-tag">Sold out</span>'}
         </div>
         <div class="endpoint-box">
-          <div class="endpoint-title">◎ Buy with your account balance</div>
-          <div class="endpoint-url">Docs: <span>${escapeHtml(api.endpointUrl)}</span></div>
+          <div class="endpoint-title">◎ Secure delivery after purchase</div>
+          <div class="endpoint-url">API access links stay hidden until you buy. Access lasts for ${api.expirationMonths} month${api.expirationMonths === 1 ? '' : 's'} from purchase.</div>
         </div>
         <div class="card-actions">
-          <a class="btn btn-secondary btn-sm" href="${escapeHtml(api.endpointUrl)}" target="_blank" rel="noreferrer">View Docs</a>
           ${api.purchased
-            ? '<a class="btn btn-primary btn-sm" href="/dashboard.html">View Purchased Key</a>'
+            ? '<a class="btn btn-primary btn-sm" href="/dashboard.html#my-api-keys">View Your API Key</a>'
             : api.availableKeys > 0
               ? `<button class="btn btn-primary btn-sm buy-api-btn" data-api-id="${api.id}" type="button">Buy with Coins</button>`
               : '<button class="btn btn-secondary btn-sm" type="button" disabled>Sold Out</button>'}
@@ -78,7 +78,8 @@ async function renderMarketplace(containerId, options = {}) {
         try {
           await NexusApi.purchase(Number(btn.dataset.apiId));
           await NexusAuth.refresh();
-          await renderMarketplace(containerId, options);
+          alert('Purchase successful. Your private API link is now available in your dashboard.');
+          location.href = '/dashboard.html#my-api-keys';
         } catch (err) {
           alert(err.message);
           btn.disabled = false;

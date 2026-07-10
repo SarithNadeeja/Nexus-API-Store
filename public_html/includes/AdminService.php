@@ -192,7 +192,7 @@ final class AdminService
     {
         ApiKeyPoolService::ensureSchema($pdo);
 
-        $required = ['name', 'access_link', 'status', 'category_id', 'price_coins'];
+        $required = ['name', 'status', 'category_id', 'price_coins', 'expiration_months'];
         foreach ($required as $field) {
             if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
                 throw new InvalidArgumentException(ucfirst(str_replace('_', ' ', $field)) . ' is required.');
@@ -200,7 +200,6 @@ final class AdminService
         }
 
         $id = isset($data['id']) && $data['id'] !== '' ? (int) $data['id'] : null;
-        $existing = null;
         if ($id) {
             $stmt = $pdo->prepare('SELECT * FROM api_listings WHERE id = ?');
             $stmt->execute([$id]);
@@ -210,7 +209,11 @@ final class AdminService
             }
         }
 
-        $accessLink = trim((string) $data['access_link']);
+        $expirationMonths = (int) $data['expiration_months'];
+        if ($expirationMonths < 1 || $expirationMonths > 120) {
+            throw new InvalidArgumentException('Expiration time must be between 1 and 120 months.');
+        }
+
         $bulkRaw = trim((string) ($data['bulk_key_links'] ?? ''));
         $bulkLinks = $bulkRaw !== '' ? ApiKeyPoolService::parseBulkLinks($bulkRaw) : [];
 
@@ -218,21 +221,23 @@ final class AdminService
             throw new InvalidArgumentException('Add at least one API key link (one per line).');
         }
 
+        $placeholderLink = '';
         $payload = [
             trim((string) $data['name']),
             trim((string) ($data['description'] ?? '')),
-            $accessLink,
-            $accessLink,
+            $placeholderLink,
+            $placeholderLink,
             ApiKeyPoolService::POOL_MARKER,
             trim((string) $data['status']),
             (int) $data['price_coins'],
             (int) $data['category_id'],
+            $expirationMonths,
         ];
 
         if ($id) {
             $payload[] = $id;
             $pdo->prepare(
-                'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=? WHERE id=?'
+                'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=?, expiration_months=? WHERE id=?'
             )->execute($payload);
 
             $keysAdded = $bulkLinks ? ApiKeyPoolService::addKeys($pdo, $id, $bulkLinks) : 0;
@@ -254,8 +259,8 @@ final class AdminService
         }
 
         $pdo->prepare(
-            'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id, expiration_months)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute($payload);
 
         $listingId = Database::lastInsertId($pdo, 'api_listings');

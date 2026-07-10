@@ -431,21 +431,6 @@ function renderDashboard() {
       </article>
     </div>
 
-    <section class="wallet-activity-section glass-card" id="my-api-keys">
-      <div class="wallet-activity-head">
-        <div>
-          <h2>🔑 My Purchased API Keys</h2>
-          <p>View your bought API history with expiry time and active or expired status.</p>
-        </div>
-        <button class="wallet-view-all" id="refresh-api-keys-btn" type="button" ${purchasesLoading ? 'disabled' : ''}>
-          ${purchasesLoading ? 'Refreshing...' : 'Refresh'} <span>↻</span>
-        </button>
-      </div>
-      <div class="wallet-api-keys-list">
-        ${renderPurchasedApis(purchases)}
-      </div>
-    </section>
-
     <section class="wallet-recharge-section glass-card">
       <div class="wallet-recharge-main">
         <div class="wallet-section-head">
@@ -515,6 +500,21 @@ function renderDashboard() {
           <li><span>✓</span> Use across all APIs</li>
         </ul>
       </aside>
+    </section>
+
+    <section class="wallet-activity-section glass-card" id="my-api-keys">
+      <div class="wallet-activity-head">
+        <div>
+          <h2>🔑 My Purchased API Keys</h2>
+          <p>View your bought API history with expiry time and active or expired status.</p>
+        </div>
+        <button class="wallet-view-all" id="refresh-api-keys-btn" type="button" ${purchasesLoading ? 'disabled' : ''}>
+          ${purchasesLoading ? 'Refreshing...' : 'Refresh'} <span>↻</span>
+        </button>
+      </div>
+      <div class="wallet-api-keys-list">
+        ${renderPurchasedApis(purchases)}
+      </div>
     </section>
 
     <section class="wallet-activity-section glass-card">

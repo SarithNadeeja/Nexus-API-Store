@@ -522,8 +522,6 @@ $username = Auth::adminUsername();
                         </select>
                     </label>
                     <label>Price (coins)<input type="number" name="price_coins" min="1" value="50" required></label>
-                    <label class="full-span">API Key<input name="api_key_value" required></label>
-                    <label class="full-span">Endpoint URL<input name="endpoint_url" required></label>
                     <label class="full-span">Access Link<input name="access_link" required></label>
                     <label class="full-span">Description<textarea name="description" rows="3"></textarea></label>
                     <div class="full-span"><button class="primary-btn" type="submit">Save API</button></div>

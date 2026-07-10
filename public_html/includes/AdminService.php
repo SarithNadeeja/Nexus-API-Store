@@ -190,21 +190,42 @@ final class AdminService
 
     public static function saveApi(PDO $pdo, array $data): void
     {
-        $fields = ['name', 'endpoint_url', 'access_link', 'api_key_value', 'status', 'category_id', 'price_coins'];
-        foreach ($fields as $field) {
+        $required = ['name', 'access_link', 'status', 'category_id', 'price_coins'];
+        foreach ($required as $field) {
             if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
                 throw new InvalidArgumentException(ucfirst(str_replace('_', ' ', $field)) . ' is required.');
             }
         }
 
         $id = isset($data['id']) && $data['id'] !== '' ? (int) $data['id'] : null;
+        $existing = null;
+        if ($id) {
+            $stmt = $pdo->prepare('SELECT * FROM api_listings WHERE id = ?');
+            $stmt->execute([$id]);
+            $existing = $stmt->fetch() ?: null;
+            if (!$existing) {
+                throw new InvalidArgumentException('API listing not found.');
+            }
+        }
+
+        $accessLink = trim((string) $data['access_link']);
+        $endpointUrl = trim((string) ($data['endpoint_url'] ?? ''));
+        if ($endpointUrl === '') {
+            $endpointUrl = (string) ($existing['endpoint_url'] ?? $accessLink);
+        }
+
+        $apiKeyValue = trim((string) ($data['api_key_value'] ?? ''));
+        if ($apiKeyValue === '') {
+            $apiKeyValue = (string) ($existing['api_key_value'] ?? self::generateApiKeyValue());
+        }
+
         $payload = [
-            trim($data['name']),
-            trim($data['description'] ?? ''),
-            trim($data['endpoint_url']),
-            trim($data['access_link']),
-            trim($data['api_key_value']),
-            trim($data['status']),
+            trim((string) $data['name']),
+            trim((string) ($data['description'] ?? '')),
+            $endpointUrl,
+            $accessLink,
+            $apiKeyValue,
+            trim((string) $data['status']),
             (int) $data['price_coins'],
             (int) $data['category_id'],
         ];
@@ -214,6 +235,7 @@ final class AdminService
             $pdo->prepare(
                 'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=? WHERE id=?'
             )->execute($payload);
+
             return;
         }
 
@@ -221,6 +243,11 @@ final class AdminService
             'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute($payload);
+    }
+
+    private static function generateApiKeyValue(): string
+    {
+        return 'nxk_live_' . bin2hex(random_bytes(16));
     }
 
     public static function deleteApi(PDO $pdo, int $id): void

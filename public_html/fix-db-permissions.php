@@ -14,6 +14,7 @@ if (!file_exists($configPath)) {
 
 $config = require $configPath;
 require_once __DIR__ . '/includes/Database.php';
+require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/AdminService.php';
 
 function quotePgIdentifier(string $value): string
@@ -31,6 +32,8 @@ function pgTables(): array
         'coin_transactions',
         'api_purchases',
         'email_verification_tokens',
+        'coin_packages',
+        'coin_settings',
     ];
 }
 
@@ -73,6 +76,8 @@ function recreateSchema(PDO $pdo, string $sqlFile): void
     $pdo->exec('DROP TABLE IF EXISTS email_verification_tokens CASCADE');
     $pdo->exec('DROP TABLE IF EXISTS api_purchases CASCADE');
     $pdo->exec('DROP TABLE IF EXISTS coin_transactions CASCADE');
+    $pdo->exec('DROP TABLE IF EXISTS coin_settings CASCADE');
+    $pdo->exec('DROP TABLE IF EXISTS coin_packages CASCADE');
     $pdo->exec('DROP TABLE IF EXISTS api_listings CASCADE');
     $pdo->exec('DROP TABLE IF EXISTS app_users CASCADE');
     $pdo->exec('DROP TABLE IF EXISTS admin_users CASCADE');

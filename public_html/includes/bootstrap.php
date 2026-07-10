@@ -21,7 +21,7 @@ if (session_status() === PHP_SESSION_NONE) {
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
-    session_start();
+    @session_start();
 }
 
 require_once __DIR__ . '/Database.php';
@@ -33,5 +33,12 @@ require_once __DIR__ . '/AdminService.php';
 require_once __DIR__ . '/CoinPackageService.php';
 require_once __DIR__ . '/VerificationService.php';
 
-$pdo = Database::connect($config['db']);
-CoinPackageService::ensureSchema($pdo);
+try {
+    $pdo = Database::connect($config['db']);
+} catch (Throwable $e) {
+    error_log('Database connection failed: ' . $e->getMessage());
+    http_response_code(503);
+    header('Content-Type: application/json');
+    echo json_encode(['message' => 'Database connection failed. Check config.php and database service.']);
+    exit;
+}

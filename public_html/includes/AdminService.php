@@ -25,30 +25,42 @@ final class AdminService
             return;
         }
 
-        $columnCheck = $pdo->prepare(
-            "SELECT 1 FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = 'admin_users' AND column_name = ?"
-        );
+        try {
+            self::ensureAdminColumn($pdo, 'must_change_credentials', 'BOOLEAN NOT NULL DEFAULT FALSE', true);
+            self::ensureAdminColumn($pdo, 'last_login', 'TIMESTAMP NULL', false);
+        } catch (Throwable $e) {
+            error_log('AdminService::ensureAdminSchema failed: ' . $e->getMessage());
+        }
+    }
 
-        $columnCheck->execute(['must_change_credentials']);
-        if (!$columnCheck->fetchColumn()) {
-            $pdo->exec('ALTER TABLE admin_users ADD COLUMN must_change_credentials BOOLEAN NOT NULL DEFAULT FALSE');
-
-            $admins = $pdo->query('SELECT id, username, password_hash FROM admin_users')->fetchAll();
-            $update = $pdo->prepare('UPDATE admin_users SET must_change_credentials = TRUE WHERE id = ?');
-            foreach ($admins as $admin) {
-                if (
-                    strtolower((string) $admin['username']) === 'admin'
-                    && password_verify('Admin@123', (string) $admin['password_hash'])
-                ) {
-                    $update->execute([(int) $admin['id']]);
-                }
+    private static function ensureAdminColumn(PDO $pdo, string $column, string $definition, bool $seedDefaultAdminFlag): void
+    {
+        try {
+            $pdo->exec("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS {$column} {$definition}");
+        } catch (PDOException) {
+            $columnCheck = $pdo->prepare(
+                'SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = \'admin_users\' AND column_name = ?'
+            );
+            $columnCheck->execute([$column]);
+            if (!$columnCheck->fetchColumn()) {
+                $pdo->exec("ALTER TABLE admin_users ADD COLUMN {$column} {$definition}");
             }
         }
 
-        $columnCheck->execute(['last_login']);
-        if (!$columnCheck->fetchColumn()) {
-            $pdo->exec('ALTER TABLE admin_users ADD COLUMN last_login TIMESTAMP NULL');
+        if (!$seedDefaultAdminFlag || $column !== 'must_change_credentials') {
+            return;
+        }
+
+        $admins = $pdo->query('SELECT id, username, password_hash FROM admin_users')->fetchAll();
+        $update = $pdo->prepare('UPDATE admin_users SET must_change_credentials = TRUE WHERE id = ?');
+        foreach ($admins as $admin) {
+            if (
+                strtolower((string) $admin['username']) === 'admin'
+                && password_verify('Admin@123', (string) $admin['password_hash'])
+            ) {
+                $update->execute([(int) $admin['id']]);
+            }
         }
     }
 

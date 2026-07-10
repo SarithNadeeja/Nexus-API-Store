@@ -2,7 +2,21 @@
 
 declare(strict_types=1);
 
-function json_response(mixed $data, int $status = 200): void
+if (!function_exists('str_contains')) {
+    function str_contains(string $haystack, string $needle): bool
+    {
+        return $needle === '' || strpos($haystack, $needle) !== false;
+    }
+}
+
+if (!function_exists('str_starts_with')) {
+    function str_starts_with(string $haystack, string $needle): bool
+    {
+        return $needle === '' || strpos($haystack, $needle) === 0;
+    }
+}
+
+function json_response($data, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -74,7 +88,7 @@ function uuid_v4(): string
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
 
-function db_bool(mixed $value): bool
+function db_bool($value): bool
 {
     return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
 }

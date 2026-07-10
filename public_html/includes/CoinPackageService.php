@@ -17,6 +17,16 @@ final class CoinPackageService
             return;
         }
 
+        try {
+            self::ensurePackagesSchema($pdo);
+            self::ensureSettingsSchemaInternal($pdo);
+        } catch (Throwable $e) {
+            error_log('CoinPackageService::ensureSchema failed: ' . $e->getMessage());
+        }
+    }
+
+    private static function ensurePackagesSchema(PDO $pdo): void
+    {
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS coin_packages (
                 id BIGSERIAL PRIMARY KEY,
@@ -47,7 +57,10 @@ final class CoinPackageService
                 ]);
             }
         }
+    }
 
+    private static function ensureSettingsSchemaInternal(PDO $pdo): void
+    {
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS coin_settings (
                 id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -55,26 +68,37 @@ final class CoinPackageService
                 custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 0.01,
                 custom_coin_min INTEGER NOT NULL DEFAULT 50,
                 custom_coin_max INTEGER NOT NULL DEFAULT 100000,
-                whatsapp_number VARCHAR(20) NOT NULL DEFAULT \'\',
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )'
         );
 
+        self::ensureColumn($pdo, 'coin_settings', 'whatsapp_number', "VARCHAR(20) NOT NULL DEFAULT ''");
+
         $settingsCount = (int) $pdo->query('SELECT COUNT(*) FROM coin_settings')->fetchColumn();
         if ($settingsCount === 0) {
             $pdo->exec(
-                'INSERT INTO coin_settings (id, custom_recharge_enabled, custom_coin_price_usd, custom_coin_min, custom_coin_max, whatsapp_number)
-                 VALUES (1, TRUE, 0.01, 50, 100000, \'\')'
+                'INSERT INTO coin_settings (id, custom_recharge_enabled, custom_coin_price_usd, custom_coin_min, custom_coin_max)
+                 VALUES (1, TRUE, 0.01, 50, 100000)'
             );
         }
+    }
 
-        $columnCheck = $pdo->prepare(
-            "SELECT 1 FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = 'coin_settings' AND column_name = 'whatsapp_number'"
+    private static function ensureColumn(PDO $pdo, string $table, string $column, string $definition): void
+    {
+        try {
+            $pdo->exec("ALTER TABLE {$table} ADD COLUMN IF NOT EXISTS {$column} {$definition}");
+            return;
+        } catch (PDOException) {
+            // Fall back for hosts that do not support IF NOT EXISTS on ADD COLUMN.
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT 1 FROM information_schema.columns
+             WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?'
         );
-        $columnCheck->execute();
-        if (!$columnCheck->fetchColumn()) {
-            $pdo->exec('ALTER TABLE coin_settings ADD COLUMN whatsapp_number VARCHAR(20) NOT NULL DEFAULT \'\'');
+        $stmt->execute([$table, $column]);
+        if (!$stmt->fetchColumn()) {
+            $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         }
     }
 
@@ -152,12 +176,20 @@ final class CoinPackageService
             throw new InvalidArgumentException('Enter a valid WhatsApp number with country code.');
         }
 
+        $existing = $pdo->query('SELECT id FROM coin_settings WHERE id = 1')->fetch();
+        if ($existing) {
+            $pdo->prepare(
+                'UPDATE coin_settings
+                 SET whatsapp_number = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = 1'
+            )->execute([$whatsappNumber]);
+
+            return;
+        }
+
         $pdo->prepare(
-            'INSERT INTO coin_settings (id, whatsapp_number)
-             VALUES (1, ?)
-             ON CONFLICT (id) DO UPDATE SET
-                whatsapp_number = EXCLUDED.whatsapp_number,
-                updated_at = CURRENT_TIMESTAMP'
+            'INSERT INTO coin_settings (id, custom_recharge_enabled, custom_coin_price_usd, custom_coin_min, custom_coin_max, whatsapp_number)
+             VALUES (1, TRUE, 0.01, 50, 100000, ?)'
         )->execute([$whatsappNumber]);
     }
 

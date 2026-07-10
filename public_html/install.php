@@ -69,6 +69,7 @@ function ensurePostgresDatabase(array $db): void
 
 try {
     require_once __DIR__ . '/includes/Database.php';
+    require_once __DIR__ . '/includes/helpers.php';
     require_once __DIR__ . '/includes/AdminService.php';
 
     $driver = $config['db']['driver'] ?? 'pgsql';

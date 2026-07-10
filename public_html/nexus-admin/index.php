@@ -3,37 +3,66 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
-require_once dirname(__DIR__) . '/includes/DashboardService.php';
+
+$section = $_GET['section'] ?? 'dashboard';
+if ($section === 'dashboard') {
+    require_once dirname(__DIR__) . '/includes/DashboardService.php';
+}
+
 AdminService::ensureDefaultAdmin($pdo);
 $admin = Auth::requireAdmin($pdo);
-$section = $_GET['section'] ?? 'dashboard';
 $success = flash('success');
 $error = flash('error');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
-        match ($action) {
-            'save_category' => AdminService::saveCategory($pdo, $_POST),
-            'delete_category' => AdminService::deleteCategory($pdo, (int) ($_POST['id'] ?? 0)),
-            'save_api' => AdminService::saveApi($pdo, $_POST),
-            'delete_api' => AdminService::deleteApi($pdo, (int) ($_POST['id'] ?? 0)),
-            'create_admin' => AdminService::createAdmin($pdo, $_POST['username'] ?? '', $_POST['password'] ?? ''),
-            'update_admin_password' => AdminService::updateAdminPassword($pdo, (int) ($_POST['userId'] ?? 0), $_POST['newPassword'] ?? ''),
-            'delete_admin' => AdminService::deleteAdmin($pdo, (int) ($_POST['id'] ?? 0), $admin['username']),
-            'adjust_coins' => AdminService::adjustUserCoins(
-                $pdo,
-                (int) ($_POST['userId'] ?? 0),
-                $_POST['operation'] ?? 'ADD',
-                (int) ($_POST['coinAmount'] ?? 0),
-                trim($_POST['note'] ?? '')
-            ),
-            'save_coin_package' => CoinPackageService::save($pdo, $_POST),
-            'delete_coin_package' => CoinPackageService::delete($pdo, (int) ($_POST['id'] ?? 0)),
-            'save_coin_settings' => CoinPackageService::saveCustomSettings($pdo, $_POST),
-            'save_contact_settings' => CoinPackageService::saveContactSettings($pdo, $_POST),
-            default => throw new InvalidArgumentException('Unknown action.'),
-        };
+        switch ($action) {
+            case 'save_category':
+                AdminService::saveCategory($pdo, $_POST);
+                break;
+            case 'delete_category':
+                AdminService::deleteCategory($pdo, (int) ($_POST['id'] ?? 0));
+                break;
+            case 'save_api':
+                AdminService::saveApi($pdo, $_POST);
+                break;
+            case 'delete_api':
+                AdminService::deleteApi($pdo, (int) ($_POST['id'] ?? 0));
+                break;
+            case 'create_admin':
+                AdminService::createAdmin($pdo, $_POST['username'] ?? '', $_POST['password'] ?? '');
+                break;
+            case 'update_admin_password':
+                AdminService::updateAdminPassword($pdo, (int) ($_POST['userId'] ?? 0), $_POST['newPassword'] ?? '');
+                break;
+            case 'delete_admin':
+                AdminService::deleteAdmin($pdo, (int) ($_POST['id'] ?? 0), $admin['username']);
+                break;
+            case 'adjust_coins':
+                AdminService::adjustUserCoins(
+                    $pdo,
+                    (int) ($_POST['userId'] ?? 0),
+                    $_POST['operation'] ?? 'ADD',
+                    (int) ($_POST['coinAmount'] ?? 0),
+                    trim($_POST['note'] ?? '')
+                );
+                break;
+            case 'save_coin_package':
+                CoinPackageService::save($pdo, $_POST);
+                break;
+            case 'delete_coin_package':
+                CoinPackageService::delete($pdo, (int) ($_POST['id'] ?? 0));
+                break;
+            case 'save_coin_settings':
+                CoinPackageService::saveCustomSettings($pdo, $_POST);
+                break;
+            case 'save_contact_settings':
+                CoinPackageService::saveContactSettings($pdo, $_POST);
+                break;
+            default:
+                throw new InvalidArgumentException('Unknown action.');
+        }
         flash('success', 'Changes saved successfully.');
     } catch (InvalidArgumentException $e) {
         flash('error', $e->getMessage());
@@ -119,7 +148,7 @@ $username = Auth::adminUsername();
         </div>
     </aside>
     <main class="content-shell">
-        <?php if (!in_array($section, ['dashboard', 'categories', 'apis', 'users', 'admins', 'coin-packages'], true)): ?>
+        <?php if (!in_array($section, ['dashboard', 'categories', 'apis', 'users', 'admins', 'coin-packages', 'settings'], true)): ?>
         <header class="topbar">
             <div><div class="eyebrow">Admin Panel</div><h2>Manage your API selling platform</h2></div>
         </header>

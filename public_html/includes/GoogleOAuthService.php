@@ -21,13 +21,14 @@ final class GoogleOAuthService
             }
         }
 
-        if ($base === '' && !empty($_SERVER['HTTP_HOST'])) {
-            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $base = $scheme . '://' . $_SERVER['HTTP_HOST'];
-        }
-
         $redirectUri = trim((string) ($google['redirect_uri'] ?? ''));
-        if ($redirectUri === '') {
+        if (!empty($_SERVER['HTTP_HOST'])) {
+            $scheme = self::requestScheme();
+            $redirectUri = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/oauth/google-callback.php';
+        } elseif ($redirectUri === '') {
+            if ($base === '' && !empty($_SERVER['HTTP_HOST'])) {
+                $base = self::requestScheme() . '://' . $_SERVER['HTTP_HOST'];
+            }
             $redirectUri = $base . '/oauth/google-callback.php';
         }
 
@@ -36,6 +37,21 @@ final class GoogleOAuthService
             'client_secret' => trim((string) ($google['client_secret'] ?? '')),
             'redirect_uri' => $redirectUri,
         ];
+    }
+
+    private static function requestScheme(): string
+    {
+        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+            return 'https';
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+            return 'https';
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_SSL']) === 'on') {
+            return 'https';
+        }
+
+        return 'http';
     }
 
     public static function isConfigured(array $config): bool

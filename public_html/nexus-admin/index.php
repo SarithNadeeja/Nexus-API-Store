@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
+require_once dirname(__DIR__) . '/includes/DashboardService.php';
 AdminService::ensureDefaultAdmin($pdo);
 $admin = Auth::requireAdmin($pdo);
 $section = $_GET['section'] ?? 'dashboard';
@@ -37,10 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $counts = AdminService::counts($pdo);
+$dashboard = $section === 'dashboard' ? DashboardService::getData($pdo) : null;
 $categories = $pdo->query('SELECT * FROM categories ORDER BY name')->fetchAll();
 $apis = $pdo->query('SELECT a.*, c.name AS category_name FROM api_listings a JOIN categories c ON c.id = a.category_id ORDER BY a.id DESC')->fetchAll();
 $users = $pdo->query('SELECT * FROM app_users ORDER BY created_at DESC')->fetchAll();
-$admins = $pdo->query('SELECT * FROM admin_users ORDER BY username')->fetchAll();
+$admins = $pdo->query('SELECT * FROM admin_users ORDER BY id ASC')->fetchAll();
 $username = Auth::adminUsername();
 ?>
 <!DOCTYPE html>
@@ -50,76 +52,382 @@ $username = Auth::adminUsername();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel | Nexus API Store</title>
     <link rel="stylesheet" href="/nexus-admin/admin.css">
+    <?php if ($section === 'dashboard'): ?>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="/nexus-admin/dashboard.js" defer></script>
+    <?php endif; ?>
+    <?php if ($section === 'categories'): ?>
+    <script src="/nexus-admin/categories.js" defer></script>
+    <?php endif; ?>
+    <?php if ($section === 'apis'): ?>
+    <script src="/nexus-admin/apis.js" defer></script>
+    <?php endif; ?>
+    <?php if ($section === 'users'): ?>
+    <script src="/nexus-admin/wallets.js" defer></script>
+    <?php endif; ?>
+    <?php if ($section === 'admins'): ?>
+    <script src="/nexus-admin/admins.js" defer></script>
+    <?php endif; ?>
+    <?php if ($section !== 'dashboard'): ?>
+    <script src="/nexus-admin/admin-shell.js" defer></script>
+    <?php endif; ?>
 </head>
 <body>
 <div class="admin-layout">
     <aside class="sidebar">
-        <div>
+        <div class="sidebar-top">
             <div class="brand-mark">N</div>
-            <h1>Nexus API Store</h1>
-            <p>Admin workspace</p>
+            <div>
+                <h1>Nexus API Store</h1>
+                <p>Admin Workspace</p>
+            </div>
         </div>
+
         <nav class="sidebar-nav">
-            <?php foreach (['dashboard'=>'Dashboard','categories'=>'Categories','apis'=>'API Keys','users'=>'User Wallets','admins'=>'Admin Accounts'] as $key=>$label): ?>
-                <a href="?section=<?= h($key) ?>" class="<?= $section === $key ? 'active' : '' ?>"><?= h($label) ?></a>
-            <?php endforeach; ?>
+            <div class="sidebar-group-label">Main Menu</div>
+            <a href="?section=dashboard" class="<?= $section === 'dashboard' ? 'active' : '' ?>">Dashboard</a>
+            <a href="?section=categories" class="<?= $section === 'categories' ? 'active' : '' ?>">Categories</a>
+            <a href="?section=apis" class="<?= $section === 'apis' ? 'active' : '' ?>">API Listings</a>
+            <a href="?section=apis" class="<?= $section === 'apis' ? 'active' : '' ?>">API Keys</a>
+            <a href="?section=users" class="<?= $section === 'users' ? 'active' : '' ?>">User Wallets</a>
+            <a href="?section=users" class="<?= $section === 'users' ? 'active' : '' ?>">Users</a>
+
+            <div class="sidebar-group-label">Administration</div>
+            <a href="?section=admins" class="<?= $section === 'admins' ? 'active' : '' ?>">Admin Accounts</a>
+            <a href="?section=dashboard" class="">Activity Logs</a>
+            <a href="?section=admins" class="">System Settings</a>
         </nav>
+
         <div class="sidebar-footer">
-            <div class="small-label">Signed in as</div>
-            <strong><?= h($username) ?></strong>
-            <form action="/nexus-admin/logout.php" method="post"><button class="secondary-btn full-width" type="submit">Logout</button></form>
+            <div class="help-card">
+                <strong>Need Help?</strong>
+                <p>View documentation and platform guides.</p>
+                <a class="secondary-btn full-width" href="/about-us.html" target="_blank" rel="noreferrer">View Documentation</a>
+            </div>
+            <form action="/nexus-admin/logout.php" method="post">
+                <button class="sidebar-signout" type="submit">Sign out</button>
+            </form>
         </div>
     </aside>
     <main class="content-shell">
+        <?php if (!in_array($section, ['dashboard', 'categories', 'apis', 'users', 'admins'], true)): ?>
         <header class="topbar">
             <div><div class="eyebrow">Admin Panel</div><h2>Manage your API selling platform</h2></div>
         </header>
+        <?php endif; ?>
         <?php if ($success): ?><div class="alert success"><?= h($success) ?></div><?php endif; ?>
         <?php if ($error): ?><div class="alert error"><?= h($error) ?></div><?php endif; ?>
 
-        <?php if ($section === 'dashboard'): ?>
-        <section class="stats-grid four-up">
-            <div class="stat-card"><span class="small-label">Categories</span><strong><?= $counts['categories'] ?></strong></div>
-            <div class="stat-card"><span class="small-label">API Listings</span><strong><?= $counts['apis'] ?></strong></div>
-            <div class="stat-card"><span class="small-label">Users</span><strong><?= $counts['users'] ?></strong></div>
-            <div class="stat-card"><span class="small-label">Admins</span><strong><?= $counts['admins'] ?></strong></div>
+        <?php if ($section === 'dashboard' && $dashboard): ?>
+        <section id="dashboard-root" class="dashboard-page">
+            <header class="dashboard-header">
+                <div>
+                    <h2>Dashboard</h2>
+                    <p>Welcome back, <?= h($username) ?>! Here's what's happening with your API platform.</p>
+                    <span class="dashboard-updated" id="dashboard-updated">Live data enabled</span>
+                </div>
+                <div class="dashboard-header-actions">
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="dashboard-search" placeholder="Search sections..." autocomplete="off">
+                        <kbd>Ctrl + K</kbd>
+                    </label>
+                    <button class="icon-btn" type="button" title="Notifications">
+                        🔔
+                        <span class="notification-dot" id="notification-count" hidden>0</span>
+                    </button>
+                    <div class="profile-chip">
+                        <div class="profile-avatar"><?= h(strtoupper(substr($username ?? 'A', 0, 1))) ?></div>
+                        <div>
+                            <strong><?= h($username) ?></strong>
+                            <span>Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard-stats-grid" id="dashboard-stats">
+                <article class="dash-stat-card">
+                    <div class="dash-stat-icon tone-purple">▦</div>
+                    <div>
+                        <div class="dash-stat-label">Categories</div>
+                        <div class="dash-stat-value"><?= (int) $dashboard['counts']['categories'] ?></div>
+                        <div class="dash-stat-sub">Total categories</div>
+                    </div>
+                </article>
+                <article class="dash-stat-card">
+                    <div class="dash-stat-icon tone-green">{ }</div>
+                    <div>
+                        <div class="dash-stat-label">API Listings</div>
+                        <div class="dash-stat-value"><?= (int) $dashboard['counts']['apis'] ?></div>
+                        <div class="dash-stat-sub">Total API listings</div>
+                    </div>
+                </article>
+                <article class="dash-stat-card">
+                    <div class="dash-stat-icon tone-blue">👥</div>
+                    <div>
+                        <div class="dash-stat-label">Users</div>
+                        <div class="dash-stat-value"><?= (int) $dashboard['counts']['users'] ?></div>
+                        <div class="dash-stat-sub">Total registered users</div>
+                    </div>
+                </article>
+                <article class="dash-stat-card">
+                    <div class="dash-stat-icon tone-orange">🛡</div>
+                    <div>
+                        <div class="dash-stat-label">Admins</div>
+                        <div class="dash-stat-value"><?= (int) $dashboard['counts']['admins'] ?></div>
+                        <div class="dash-stat-sub">Total admin accounts</div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="dashboard-main-grid">
+                <article class="dashboard-panel chart-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h3>Platform Overview</h3>
+                            <p>Last 7 days</p>
+                        </div>
+                    </div>
+                    <div class="chart-wrap">
+                        <canvas id="overview-chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="dashboard-panel">
+                    <div class="panel-head">
+                        <h3>Recent Activity</h3>
+                        <a href="?section=users" class="panel-link">View all</a>
+                    </div>
+                    <div id="recent-activity" class="activity-list">
+                        <?php foreach ($dashboard['recentActivity'] as $item): ?>
+                        <div class="activity-item">
+                            <div class="activity-icon"><?= $item['type'] === 'user' ? '👤' : ($item['type'] === 'key' ? '🔑' : ($item['type'] === 'api' ? '{ }' : '🛡')) ?></div>
+                            <div class="activity-copy">
+                                <strong><?= h($item['title']) ?></strong>
+                                <span><?= h($item['detail']) ?></span>
+                            </div>
+                            <time><?= h($item['timeAgo']) ?></time>
+                        </div>
+                        <?php endforeach; ?>
+                        <?php if (!$dashboard['recentActivity']): ?><p class="empty-copy">No recent activity yet.</p><?php endif; ?>
+                    </div>
+                </article>
+            </div>
+
+            <div class="dashboard-bottom-grid">
+                <article class="dashboard-panel">
+                    <div class="panel-head"><h3>Top Categories</h3></div>
+                    <div id="top-categories">
+                        <?php if ($dashboard['topCategories']): ?>
+                            <?php foreach ($dashboard['topCategories'] as $item): ?>
+                            <div class="rank-row">
+                                <span><?= h($item['name']) ?></span>
+                                <strong><?= (int) $item['api_count'] ?> APIs</strong>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="empty-state">
+                                <div class="empty-icon">📁</div>
+                                <p>No categories yet</p>
+                                <span>Create your first category to get started.</span>
+                                <a class="primary-btn" href="?section=categories">Create Category</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </article>
+
+                <article class="dashboard-panel">
+                    <div class="panel-head"><h3>Top APIs</h3></div>
+                    <div id="top-apis">
+                        <?php if ($dashboard['topApis']): ?>
+                            <?php foreach ($dashboard['topApis'] as $item): ?>
+                            <div class="rank-row">
+                                <span><?= h($item['name']) ?></span>
+                                <strong><?= (int) $item['purchase_count'] ?> purchases</strong>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="empty-state">
+                                <div class="empty-icon">{ }</div>
+                                <p>No API listings yet</p>
+                                <span>Add your first API listing to get started.</span>
+                                <a class="primary-btn" href="?section=apis">Add API Listing</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </article>
+
+                <article class="dashboard-panel system-panel">
+                    <div class="panel-head"><h3>System Status</h3></div>
+                    <div class="system-list">
+                        <div class="system-row"><span>Server Status</span><em id="system-server" class="status-badge status-good"><?= h($dashboard['system']['server']) ?></em></div>
+                        <div class="system-row"><span>Database</span><em id="system-database" class="status-badge status-good"><?= h($dashboard['system']['database']) ?></em></div>
+                        <div class="system-row"><span>Storage</span><em id="system-storage" class="status-badge status-info"><?= h($dashboard['system']['storageLabel']) ?></em></div>
+                        <div class="system-row"><span>API Response Time</span><em id="system-api" class="status-badge status-info"><?= (int) $dashboard['system']['apiResponseMs'] ?>ms</em></div>
+                    </div>
+                </article>
+            </div>
+
+            <footer class="dashboard-footer">
+                <span>© <?= date('Y') ?> Nexus API Store. All rights reserved.</span>
+                <div class="dashboard-footer-links">
+                    <span>Version 1.0.0</span>
+                    <a href="/index.html#security">Privacy Policy</a>
+                    <a href="/index.html#faq">Terms of Service</a>
+                </div>
+            </footer>
         </section>
         <?php endif; ?>
 
         <?php if ($section === 'categories'): ?>
-        <section class="section-block">
-            <div class="card">
-                <h4>Add / Update Category</h4>
-                <form method="post" class="form-grid">
-                    <input type="hidden" name="action" value="save_category">
-                    <input type="hidden" name="return_section" value="categories">
-                    <input type="hidden" name="id" id="category-id">
-                    <label class="full-span">Name<input name="name" required></label>
-                    <label class="full-span">Description<textarea name="description" rows="3"></textarea></label>
-                    <div class="full-span"><button class="primary-btn" type="submit">Save Category</button></div>
-                </form>
-            </div>
-            <div class="table-card">
-                <table>
-                    <thead><tr><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($categories as $cat): ?>
-                        <tr>
-                            <td><?= h($cat['name']) ?></td>
-                            <td><?= h($cat['description']) ?></td>
-                            <td class="inline-actions">
-                                <form method="post" class="inline-form" onsubmit="return confirm('Delete this category?')">
-                                    <input type="hidden" name="action" value="delete_category">
-                                    <input type="hidden" name="return_section" value="categories">
-                                    <input type="hidden" name="id" value="<?= (int) $cat['id'] ?>">
-                                    <button class="danger-btn" type="submit">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+        <section id="categories-page" class="section-page">
+            <header class="section-page-header">
+                <div>
+                    <div class="breadcrumbs"><a href="?section=dashboard">Dashboard</a> <span>›</span> <span>Categories</span></div>
+                    <h2>Categories</h2>
+                    <p>Organize your APIs with categories to help users discover your services easily.</p>
+                </div>
+                <div class="section-page-actions">
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="admin-shell-search" placeholder="Search anything..." autocomplete="off">
+                        <kbd>Ctrl + K</kbd>
+                    </label>
+                    <button class="icon-btn" type="button" title="Notifications">🔔</button>
+                    <div class="profile-chip">
+                        <div class="profile-avatar"><?= h(strtoupper(substr($username ?? 'A', 0, 1))) ?></div>
+                        <div>
+                            <strong><?= h($username) ?></strong>
+                            <span>Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <article class="section-panel category-form-panel">
+                <div class="panel-title-row">
+                    <div class="panel-title-icon tone-blue">▦</div>
+                    <div>
+                        <h3 id="category-form-title">Add / Update Category</h3>
+                        <p>Create or edit a marketplace category.</p>
+                    </div>
+                </div>
+
+                <div class="category-form-layout">
+                    <form method="post" class="category-form" id="category-form">
+                        <input type="hidden" name="action" value="save_category">
+                        <input type="hidden" name="return_section" value="categories">
+                        <input type="hidden" name="id" id="category-id">
+
+                        <label class="field-label">
+                            <span>Category Name <em>*</em></span>
+                            <input type="text" name="name" id="category-name" placeholder="Enter category name" required>
+                        </label>
+
+                        <label class="field-label">
+                            <span>Description</span>
+                            <textarea name="description" id="category-description" rows="5" placeholder="Enter category description (optional)"></textarea>
+                        </label>
+
+                        <div class="form-actions-row">
+                            <button class="primary-btn" type="submit">💾 Save Category</button>
+                            <button class="secondary-btn" type="button" id="category-reset-btn">✕ Reset</button>
+                        </div>
+                    </form>
+
+                    <aside class="category-preview-card">
+                        <div class="preview-label">Category Preview</div>
+                        <div class="preview-icon-wrap">
+                            <div class="preview-icon">📁</div>
+                        </div>
+                        <h4 id="category-preview-name">Category Name</h4>
+                        <p id="category-preview-description">Category description preview</p>
+                        <span class="preview-badge">New</span>
+                    </aside>
+                </div>
+            </article>
+
+            <article class="section-panel">
+                <div class="table-toolbar">
+                    <div class="panel-title-row compact">
+                        <div class="panel-title-icon tone-purple">☰</div>
+                        <h3>Categories List</h3>
+                    </div>
+                    <div class="table-toolbar-actions">
+                        <label class="table-search">
+                            <span>⌕</span>
+                            <input type="search" id="category-table-search" placeholder="Search categories...">
+                        </label>
+                        <button class="primary-btn" type="button" id="category-add-btn">+ Add Category</button>
+                    </div>
+                </div>
+
+                <div class="table-card flush">
+                    <table class="categories-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="category-table-body">
+                        <?php foreach ($categories as $index => $cat): ?>
+                            <?php $visual = category_visual($index); ?>
+                            <tr>
+                                <td><?= str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) ?></td>
+                                <td>
+                                    <div class="category-name-cell">
+                                        <span class="category-row-icon <?= h($visual['tone']) ?>"><?= $visual['icon'] ?></span>
+                                        <strong><?= h($cat['name']) ?></strong>
+                                    </div>
+                                </td>
+                                <td><?= h($cat['description'] ?: '—') ?></td>
+                                <td><?= h(format_admin_date($cat['created_at'] ?? null)) ?></td>
+                                <td>
+                                    <div class="table-action-buttons">
+                                        <button
+                                            type="button"
+                                            class="icon-action edit"
+                                            data-edit-category
+                                            data-id="<?= (int) $cat['id'] ?>"
+                                            data-name="<?= h($cat['name']) ?>"
+                                            data-description="<?= h($cat['description'] ?? '') ?>"
+                                            title="Edit"
+                                        >✎</button>
+                                        <form method="post" class="inline-form" onsubmit="return confirm('Delete this category?')">
+                                            <input type="hidden" name="action" value="delete_category">
+                                            <input type="hidden" name="return_section" value="categories">
+                                            <input type="hidden" name="id" value="<?= (int) $cat['id'] ?>">
+                                            <button class="icon-action delete" type="submit" title="Delete">🗑</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if (!$categories): ?>
+                            <tr>
+                                <td colspan="5" class="empty-copy">No categories yet. Create your first category above.</td>
+                            </tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer">
+                    <div class="pagination" id="category-pagination"></div>
+                    <label class="per-page">
+                        <select id="category-per-page">
+                            <option value="5">5 per page</option>
+                            <option value="10" selected>10 per page</option>
+                            <option value="20">20 per page</option>
+                        </select>
+                    </label>
+                </div>
+            </article>
         </section>
         <?php endif; ?>
 
@@ -173,91 +481,408 @@ $username = Auth::adminUsername();
         <?php endif; ?>
 
         <?php if ($section === 'users'): ?>
-        <section class="section-block split-grid user-wallet-grid">
-            <div class="card">
-                <h4>Adjust User Coins</h4>
-                <form method="post" class="stack-md">
-                    <input type="hidden" name="action" value="adjust_coins">
-                    <input type="hidden" name="return_section" value="users">
-                    <label>User
-                        <select name="userId" required>
-                            <?php foreach ($users as $user): ?>
-                                <option value="<?= (int) $user['id'] ?>"><?= h($user['full_name']) ?> (<?= h($user['email']) ?>)</option>
+        <?php
+            $unverifiedUsers = 0;
+            foreach ($users as $u) {
+                if (!db_bool($u['email_verified'])) {
+                    $unverifiedUsers++;
+                }
+            }
+        ?>
+        <section id="wallets-page" class="section-page">
+            <header class="section-page-header">
+                <div>
+                    <div class="breadcrumbs"><a href="?section=dashboard">Dashboard</a> <span>›</span> <span>User Wallets</span></div>
+                    <h2>User Wallets</h2>
+                    <p>Manage and adjust user wallet coins securely.</p>
+                </div>
+                <div class="section-page-actions">
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="admin-shell-search" placeholder="Search anything..." autocomplete="off">
+                        <kbd>Ctrl + K</kbd>
+                    </label>
+                    <button class="icon-btn" type="button" title="Notifications">
+                        🔔
+                        <?php if ($unverifiedUsers > 0): ?><span class="notification-dot"><?= $unverifiedUsers ?></span><?php endif; ?>
+                    </button>
+                    <div class="profile-chip">
+                        <div class="profile-avatar"><?= h(strtoupper(substr($username ?? 'A', 0, 1))) ?></div>
+                        <div>
+                            <strong><?= h($username) ?></strong>
+                            <span>Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="wallets-layout">
+                <article class="section-panel wallet-form-panel">
+                    <div class="panel-title-row">
+                        <div class="panel-title-icon tone-blue">👛</div>
+                        <div>
+                            <h3>Adjust User Coins</h3>
+                            <p>Credit or debit coins from a user wallet.</p>
+                        </div>
+                    </div>
+
+                    <form method="post" class="wallet-form" id="wallet-adjust-form">
+                        <input type="hidden" name="action" value="adjust_coins">
+                        <input type="hidden" name="return_section" value="users">
+
+                        <label class="field-label">
+                            <span>User <em>*</em></span>
+                            <select name="userId" id="wallet-user-id" required>
+                                <?php if (!$users): ?>
+                                    <option value="">No users available</option>
+                                <?php else: ?>
+                                    <?php foreach ($users as $user): ?>
+                                        <option value="<?= (int) $user['id'] ?>">
+                                            <?= h($user['full_name']) ?> (<?= h($user['email']) ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                        </label>
+
+                        <label class="field-label">
+                            <span>Operation <em>*</em></span>
+                            <select name="operation" required>
+                                <option value="ADD">Add coins</option>
+                                <option value="REMOVE">Remove coins</option>
+                            </select>
+                        </label>
+
+                        <label class="field-label">
+                            <span>Amount <em>*</em></span>
+                            <div class="input-with-icon">
+                                <span class="input-icon">◎</span>
+                                <input type="number" name="coinAmount" min="1" placeholder="Enter amount" required>
+                            </div>
+                        </label>
+
+                        <label class="field-label">
+                            <span>Note</span>
+                            <textarea name="note" rows="4" placeholder="Write a note for this adjustment (optional)"></textarea>
+                        </label>
+
+                        <button class="primary-btn full-width" type="submit" <?= !$users ? 'disabled' : '' ?>>✈ Apply Adjustment</button>
+                    </form>
+
+                    <div class="info-box">
+                        <span class="info-box-icon">ℹ</span>
+                        <p><strong>Important:</strong> All wallet adjustments are recorded in the activity logs for transparency and security.</p>
+                    </div>
+                </article>
+
+                <article class="section-panel wallet-table-panel">
+                    <div class="table-toolbar">
+                        <div class="panel-title-row compact">
+                            <div class="panel-title-icon tone-purple">☰</div>
+                            <h3>Users Wallet Overview</h3>
+                        </div>
+                        <div class="table-toolbar-actions">
+                            <label class="table-search">
+                                <span>⌕</span>
+                                <input type="search" id="wallet-table-search" placeholder="Search users...">
+                            </label>
+                            <button class="secondary-btn" type="button" id="wallet-export-btn">⬇ Export</button>
+                        </div>
+                    </div>
+
+                    <div class="table-card flush">
+                        <table class="wallets-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Balance</th>
+                                    <th>Verified</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wallet-table-body">
+                            <?php foreach ($users as $index => $user): ?>
+                                <?php $tone = user_avatar_tone($index); $verified = db_bool($user['email_verified']); ?>
+                                <tr
+                                    data-user-row
+                                    data-user-id="<?= (int) $user['id'] ?>"
+                                    data-name="<?= h($user['full_name']) ?>"
+                                    data-email="<?= h($user['email']) ?>"
+                                    data-balance="<?= (int) $user['coin_balance'] ?>"
+                                    data-verified="<?= $verified ? 'Yes' : 'No' ?>"
+                                >
+                                    <td>
+                                        <div class="user-name-cell">
+                                            <span class="user-avatar <?= h($tone) ?>"><?= h(strtoupper(substr($user['full_name'], 0, 1))) ?></span>
+                                            <strong><?= h($user['full_name']) ?></strong>
+                                        </div>
+                                    </td>
+                                    <td><?= h($user['email']) ?></td>
+                                    <td><span class="coin-balance">◎ <?= number_format((int) $user['coin_balance']) ?></span></td>
+                                    <td>
+                                        <span class="status-badge <?= $verified ? 'status-good' : 'status-bad' ?>">
+                                            <?= $verified ? 'Yes' : 'No' ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="wallet-actions">
+                                            <button class="icon-action menu" type="button" data-wallet-menu-toggle title="Actions">⋮</button>
+                                            <div class="wallet-menu">
+                                                <button type="button" data-select-wallet-user data-user-id="<?= (int) $user['id'] ?>">Adjust wallet</button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
-                        </select>
-                    </label>
-                    <label>Operation
-                        <select name="operation"><option value="ADD">Add coins</option><option value="REMOVE">Remove coins</option></select>
-                    </label>
-                    <label>Amount<input type="number" name="coinAmount" min="1" required></label>
-                    <label>Note<input name="note" placeholder="Manual admin wallet adjustment"></label>
-                    <button class="primary-btn" type="submit">Apply Adjustment</button>
-                </form>
-            </div>
-            <div class="table-card">
-                <table>
-                    <thead><tr><th>Name</th><th>Email</th><th>Balance</th><th>Verified</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($users as $user): ?>
-                        <tr>
-                            <td><?= h($user['full_name']) ?></td>
-                            <td><?= h($user['email']) ?></td>
-                            <td><?= (int) $user['coin_balance'] ?></td>
-                            <td><?= db_bool($user['email_verified']) ? 'Yes' : 'No' ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
+                            <?php if (!$users): ?>
+                                <tr>
+                                    <td colspan="5" class="empty-copy">No registered users yet.</td>
+                                </tr>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-footer wallet-table-footer">
+                        <div class="wallet-summary" id="wallet-table-summary">Showing 0 users</div>
+                        <div class="pagination" id="wallet-pagination"></div>
+                        <label class="per-page">
+                            <select id="wallet-per-page">
+                                <option value="5">5 per page</option>
+                                <option value="10" selected>10 per page</option>
+                                <option value="20">20 per page</option>
+                            </select>
+                        </label>
+                    </div>
+                </article>
             </div>
         </section>
         <?php endif; ?>
 
         <?php if ($section === 'admins'): ?>
-        <section class="section-block split-grid">
-            <div class="card">
-                <h4>Create Admin</h4>
-                <form method="post" class="stack-md">
-                    <input type="hidden" name="action" value="create_admin">
-                    <input type="hidden" name="return_section" value="admins">
-                    <label>Username<input name="username" required></label>
-                    <label>Password<input type="password" name="password" minlength="8" required></label>
-                    <button class="primary-btn" type="submit">Create Admin</button>
-                </form>
+        <section id="admins-page" class="section-page">
+            <header class="section-page-header">
+                <div>
+                    <div class="breadcrumbs"><a href="?section=dashboard">Dashboard</a> <span>›</span> <span>Admin Accounts</span></div>
+                    <h2>Admin Accounts</h2>
+                    <p>Create new admin accounts and manage existing administrators.</p>
+                </div>
+                <div class="section-page-actions">
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="admin-shell-search" placeholder="Search anything..." autocomplete="off">
+                        <kbd>Ctrl + K</kbd>
+                    </label>
+                    <button class="icon-btn" type="button" title="Notifications">
+                        🔔
+                        <?php
+                            $pendingAdmins = 0;
+                            foreach ($admins as $row) {
+                                if (AdminService::mustChangeCredentials($row)) {
+                                    $pendingAdmins++;
+                                }
+                            }
+                        ?>
+                        <?php if ($pendingAdmins > 0): ?><span class="notification-dot"><?= $pendingAdmins ?></span><?php endif; ?>
+                    </button>
+                    <div class="profile-chip">
+                        <div class="profile-avatar"><?= h(strtoupper(substr($username ?? 'A', 0, 1))) ?></div>
+                        <div>
+                            <strong><?= h($username) ?></strong>
+                            <span>Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="admins-forms-grid">
+                <article class="section-panel admin-create-panel">
+                    <div class="panel-title-row">
+                        <div class="panel-title-icon tone-blue">👤</div>
+                        <div>
+                            <h3>Create New Admin</h3>
+                            <p>Add a trusted administrator to the workspace.</p>
+                        </div>
+                    </div>
+
+                    <form method="post" class="admin-form" id="create-admin-form">
+                        <input type="hidden" name="action" value="create_admin">
+                        <input type="hidden" name="return_section" value="admins">
+
+                        <label class="field-label">
+                            <span>Username <em>*</em></span>
+                            <input type="text" name="username" placeholder="Enter username" required autocomplete="off">
+                        </label>
+
+                        <label class="field-label">
+                            <span>Password <em>*</em></span>
+                            <div class="password-field">
+                                <input type="password" name="password" id="create-admin-password" minlength="8" placeholder="Enter password" required autocomplete="new-password">
+                                <button class="password-toggle" type="button" data-password-target="create-admin-password" aria-label="Show password">👁</button>
+                            </div>
+                        </label>
+
+                        <p class="form-hint">The new admin will receive default permissions.</p>
+
+                        <button class="primary-btn full-width" type="submit">👤 Create Admin</button>
+                    </form>
+                </article>
+
+                <article class="section-panel admin-password-panel">
+                    <div class="panel-title-row">
+                        <div class="panel-title-icon tone-purple">🔑</div>
+                        <div>
+                            <h3>Update Admin Password</h3>
+                            <p>Reset credentials for an existing administrator.</p>
+                        </div>
+                    </div>
+
+                    <form method="post" class="admin-form" id="update-admin-password-form">
+                        <input type="hidden" name="action" value="update_admin_password">
+                        <input type="hidden" name="return_section" value="admins">
+
+                        <label class="field-label">
+                            <span>Admin <em>*</em></span>
+                            <select name="userId" id="admin-password-user-id" required>
+                                <option value="">Select admin</option>
+                                <?php foreach ($admins as $row): ?>
+                                    <option value="<?= (int) $row['id'] ?>"><?= h($row['username']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+
+                        <label class="field-label">
+                            <span>New Password <em>*</em></span>
+                            <div class="password-field">
+                                <input type="password" name="newPassword" id="update-admin-password" minlength="8" placeholder="Enter new password" required autocomplete="new-password">
+                                <button class="password-toggle" type="button" data-password-target="update-admin-password" aria-label="Show password">👁</button>
+                            </div>
+                        </label>
+
+                        <p class="form-hint">Choose a strong password to keep the account secure.</p>
+
+                        <button class="primary-btn tone-purple full-width" type="submit" <?= !$admins ? 'disabled' : '' ?>>🔒 Update Password</button>
+                    </form>
+                </article>
             </div>
-            <div class="card">
-                <h4>Update Admin Password</h4>
-                <form method="post" class="stack-md">
-                    <input type="hidden" name="action" value="update_admin_password">
-                    <input type="hidden" name="return_section" value="admins">
-                    <label>Admin
-                        <select name="userId" required>
-                            <?php foreach ($admins as $row): ?><option value="<?= (int) $row['id'] ?>"><?= h($row['username']) ?></option><?php endforeach; ?>
+
+            <article class="section-panel admins-table-panel">
+                <div class="table-toolbar">
+                    <div class="panel-title-row compact">
+                        <div class="panel-title-icon tone-blue">☰</div>
+                        <h3>Administrator Accounts</h3>
+                    </div>
+                    <div class="table-toolbar-actions">
+                        <label class="table-search">
+                            <span>⌕</span>
+                            <input type="search" id="admins-table-search" placeholder="Search admins...">
+                        </label>
+                        <div class="filter-dropdown">
+                            <button class="secondary-btn" type="button" id="admins-filter-toggle">⚙ Filter</button>
+                            <div class="filter-menu" id="admins-filter-menu">
+                                <button type="button" data-admin-filter="all" class="active">All admins</button>
+                                <button type="button" data-admin-filter="active">Active only</button>
+                                <button type="button" data-admin-filter="pending">Setup required</button>
+                            </div>
+                        </div>
+                        <button class="secondary-btn" type="button" id="admins-export-btn">⬇ Export</button>
+                    </div>
+                </div>
+
+                <div class="table-card flush">
+                    <table class="admins-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Username</th>
+                                <th>Created At</th>
+                                <th>Last Login</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admins-table-body">
+                        <?php foreach ($admins as $index => $row): ?>
+                            <?php
+                                $pendingSetup = AdminService::mustChangeCredentials($row);
+                                $status = $pendingSetup ? 'pending' : 'active';
+                                $tone = user_avatar_tone($index);
+                            ?>
+                            <tr
+                                data-admin-row
+                                data-admin-id="<?= (int) $row['id'] ?>"
+                                data-username="<?= h($row['username']) ?>"
+                                data-created="<?= h($row['created_at'] ?? '') ?>"
+                                data-last-login="<?= h($row['last_login'] ?? '') ?>"
+                                data-status="<?= h($status) ?>"
+                            >
+                                <td><?= (int) $row['id'] ?></td>
+                                <td>
+                                    <div class="admin-username-cell">
+                                        <span class="user-avatar <?= h($tone) ?>"><?= h(strtoupper(substr($row['username'], 0, 1))) ?></span>
+                                        <div>
+                                            <strong><?= h($row['username']) ?></strong>
+                                            <span class="role-badge">Super Admin</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><?= h(format_admin_datetime($row['created_at'] ?? null)) ?></td>
+                                <td><?= h(format_admin_datetime($row['last_login'] ?? null)) ?></td>
+                                <td>
+                                    <span class="status-badge <?= $pendingSetup ? 'status-warn' : 'status-good' ?>">
+                                        <?= $pendingSetup ? 'Setup Required' : 'Active' ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="wallet-actions">
+                                        <button class="icon-action menu" type="button" data-admin-menu-toggle title="Actions">⋮</button>
+                                        <div class="wallet-menu admin-menu">
+                                            <button type="button" data-select-admin-password data-admin-id="<?= (int) $row['id'] ?>">Update password</button>
+                                            <?php if ($row['username'] !== $username): ?>
+                                                <form method="post" onsubmit="return confirm('Delete this admin account?')">
+                                                    <input type="hidden" name="action" value="delete_admin">
+                                                    <input type="hidden" name="return_section" value="admins">
+                                                    <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+                                                    <button type="submit">Delete admin</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if (!$admins): ?>
+                            <tr>
+                                <td colspan="6" class="empty-copy">No admin accounts found.</td>
+                            </tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer wallet-table-footer">
+                    <div class="wallet-summary" id="admins-table-summary">Showing 0 admins</div>
+                    <div class="pagination" id="admins-pagination"></div>
+                    <label class="per-page">
+                        <select id="admins-per-page">
+                            <option value="5">5 per page</option>
+                            <option value="10" selected>10 per page</option>
+                            <option value="20">20 per page</option>
                         </select>
                     </label>
-                    <label>New Password<input type="password" name="newPassword" minlength="8" required></label>
-                    <button class="secondary-btn" type="submit">Update Password</button>
-                </form>
-            </div>
-            <div class="table-card full-span">
-                <table>
-                    <thead><tr><th>Username</th><th>Created</th><th>Actions</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($admins as $row): ?>
-                        <tr>
-                            <td><?= h($row['username']) ?></td>
-                            <td><?= h($row['created_at']) ?></td>
-                            <td>
-                                <form method="post" class="inline-form" onsubmit="return confirm('Delete this admin?')">
-                                    <input type="hidden" name="action" value="delete_admin">
-                                    <input type="hidden" name="return_section" value="admins">
-                                    <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
-                                    <button class="danger-btn" type="submit">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
+                </div>
+            </article>
+
+            <div class="security-banner">
+                <div class="security-banner-copy">
+                    <span class="security-banner-icon">🛡</span>
+                    <div>
+                        <strong>Security Best Practices</strong>
+                        <p>Use strong passwords and limit admin access to trusted users only. All admin actions are logged in the activity logs for security.</p>
+                    </div>
+                </div>
+                <a class="secondary-btn" href="?section=dashboard">View Activity Logs</a>
             </div>
         </section>
         <?php endif; ?>

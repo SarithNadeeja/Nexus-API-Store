@@ -69,7 +69,7 @@ final class Auth
         return $user;
     }
 
-    public static function requireAdmin(PDO $pdo): array
+    public static function requireAdmin(PDO $pdo, bool $allowPendingSetup = false): array
     {
         $id = self::adminUserId();
         if ($id === null) {
@@ -81,6 +81,9 @@ final class Auth
         if (!$admin) {
             self::clearAdmin();
             redirect('/nexus-admin/login.php');
+        }
+        if (!$allowPendingSetup && AdminService::mustChangeCredentials($admin)) {
+            redirect('/nexus-admin/setup-credentials.php');
         }
         return $admin;
     }

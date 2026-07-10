@@ -7,10 +7,20 @@ AdminService::ensureDefaultAdmin($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $admin = AdminService::login($pdo, $_POST['username'] ?? '', $_POST['password'] ?? '');
-    redirect($admin ? '/nexus-admin/index.php' : '/nexus-admin/login.php?error=1');
+    if (!$admin) {
+        redirect('/nexus-admin/login.php?error=1');
+    }
+    if (AdminService::mustChangeCredentials($admin)) {
+        redirect('/nexus-admin/setup-credentials.php');
+    }
+    redirect('/nexus-admin/index.php');
 }
 
 if (Auth::adminUserId() !== null) {
+    $admin = Auth::requireAdmin($pdo, true);
+    if (AdminService::mustChangeCredentials($admin)) {
+        redirect('/nexus-admin/setup-credentials.php');
+    }
     redirect('/nexus-admin/index.php');
 }
 
@@ -38,16 +48,14 @@ $logout = isset($_GET['logout']);
         <form method="post" class="stack-lg">
             <label>
                 <span>Username</span>
-                <input type="text" name="username" placeholder="admin" required>
+                <input type="text" name="username" placeholder="Enter your username" required autocomplete="username">
             </label>
             <label>
                 <span>Password</span>
-                <input type="password" name="password" placeholder="Enter your password" required>
+                <input type="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
             </label>
             <button type="submit" class="primary-btn">Login to Admin</button>
         </form>
-
-        <div class="helper-note">Default login: <strong>admin</strong> / <strong>Admin@123</strong></div>
     </div>
 </div>
 </body>

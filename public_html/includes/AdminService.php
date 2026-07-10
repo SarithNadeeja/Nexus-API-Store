@@ -6,25 +6,130 @@ final class AdminService
 {
     public static function ensureDefaultAdmin(PDO $pdo): void
     {
+        self::ensureAdminSchema($pdo);
+
         $count = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
         if ($count > 0) {
             return;
         }
+
         $hash = password_hash('Admin@123', PASSWORD_BCRYPT);
-        $pdo->prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)')
-            ->execute(['admin', $hash]);
+        $pdo->prepare(
+            'INSERT INTO admin_users (username, password_hash, must_change_credentials) VALUES (?, ?, TRUE)'
+        )->execute(['admin', $hash]);
+    }
+
+    public static function ensureAdminSchema(PDO $pdo): void
+    {
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql') {
+            return;
+        }
+
+        $columnCheck = $pdo->prepare(
+            "SELECT 1 FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'admin_users' AND column_name = ?"
+        );
+
+        $columnCheck->execute(['must_change_credentials']);
+        if (!$columnCheck->fetchColumn()) {
+            $pdo->exec('ALTER TABLE admin_users ADD COLUMN must_change_credentials BOOLEAN NOT NULL DEFAULT FALSE');
+
+            $admins = $pdo->query('SELECT id, username, password_hash FROM admin_users')->fetchAll();
+            $update = $pdo->prepare('UPDATE admin_users SET must_change_credentials = TRUE WHERE id = ?');
+            foreach ($admins as $admin) {
+                if (
+                    strtolower((string) $admin['username']) === 'admin'
+                    && password_verify('Admin@123', (string) $admin['password_hash'])
+                ) {
+                    $update->execute([(int) $admin['id']]);
+                }
+            }
+        }
+
+        $columnCheck->execute(['last_login']);
+        if (!$columnCheck->fetchColumn()) {
+            $pdo->exec('ALTER TABLE admin_users ADD COLUMN last_login TIMESTAMP NULL');
+        }
+    }
+
+    public static function mustChangeCredentials(array $admin): bool
+    {
+        return db_bool($admin['must_change_credentials'] ?? false);
     }
 
     public static function login(PDO $pdo, string $username, string $password): ?array
     {
+        self::ensureAdminSchema($pdo);
+
         $stmt = $pdo->prepare('SELECT * FROM admin_users WHERE username = ?');
         $stmt->execute([trim($username)]);
         $admin = $stmt->fetch();
         if (!$admin || !password_verify($password, $admin['password_hash'])) {
             return null;
         }
+        $pdo->prepare('UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')->execute([(int) $admin['id']]);
         Auth::setAdmin((int) $admin['id'], $admin['username']);
         return $admin;
+    }
+
+    public static function completeCredentialSetup(
+        PDO $pdo,
+        int $adminId,
+        string $currentPassword,
+        string $newUsername,
+        string $newPassword,
+        string $confirmPassword
+    ): array {
+        self::ensureAdminSchema($pdo);
+
+        $stmt = $pdo->prepare('SELECT * FROM admin_users WHERE id = ?');
+        $stmt->execute([$adminId]);
+        $admin = $stmt->fetch();
+        if (!$admin) {
+            throw new InvalidArgumentException('Admin account not found.');
+        }
+        if (!password_verify($currentPassword, $admin['password_hash'])) {
+            throw new InvalidArgumentException('Current password is incorrect.');
+        }
+
+        $newUsername = trim($newUsername);
+        if ($newUsername === '') {
+            throw new InvalidArgumentException('New username is required.');
+        }
+        if (strlen($newPassword) < 8) {
+            throw new InvalidArgumentException('New password must be at least 8 characters.');
+        }
+        if ($newPassword !== $confirmPassword) {
+            throw new InvalidArgumentException('New passwords do not match.');
+        }
+        if ($newPassword === 'Admin@123') {
+            throw new InvalidArgumentException('Choose a stronger password than the default setup password.');
+        }
+        if ($newPassword === $currentPassword) {
+            throw new InvalidArgumentException('Choose a different password from your current one.');
+        }
+        if (password_verify($newPassword, $admin['password_hash'])) {
+            throw new InvalidArgumentException('Choose a different password from your current one.');
+        }
+
+        $check = $pdo->prepare('SELECT id FROM admin_users WHERE LOWER(username) = LOWER(?) AND id <> ?');
+        $check->execute([$newUsername, $adminId]);
+        if ($check->fetch()) {
+            throw new InvalidArgumentException('That username is already in use.');
+        }
+
+        $pdo->prepare(
+            'UPDATE admin_users SET username = ?, password_hash = ?, must_change_credentials = FALSE WHERE id = ?'
+        )->execute([
+            $newUsername,
+            password_hash($newPassword, PASSWORD_BCRYPT),
+            $adminId,
+        ]);
+
+        Auth::setAdmin($adminId, $newUsername);
+
+        $stmt->execute([$adminId]);
+        return $stmt->fetch();
     }
 
     public static function counts(PDO $pdo): array
@@ -113,6 +218,8 @@ final class AdminService
 
     public static function createAdmin(PDO $pdo, string $username, string $password): void
     {
+        self::ensureAdminSchema($pdo);
+
         if (strlen($password) < 8) {
             throw new InvalidArgumentException('Password must be at least 8 characters.');
         }
@@ -121,8 +228,9 @@ final class AdminService
         if ($check->fetch()) {
             throw new InvalidArgumentException('An admin with this username already exists.');
         }
-        $pdo->prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)')
-            ->execute([trim($username), password_hash($password, PASSWORD_BCRYPT)]);
+        $pdo->prepare(
+            'INSERT INTO admin_users (username, password_hash, must_change_credentials) VALUES (?, ?, FALSE)'
+        )->execute([trim($username), password_hash($password, PASSWORD_BCRYPT)]);
     }
 
     public static function updateAdminPassword(PDO $pdo, int $userId, string $password): void
@@ -130,7 +238,7 @@ final class AdminService
         if (strlen($password) < 8) {
             throw new InvalidArgumentException('Password must be at least 8 characters.');
         }
-        $pdo->prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?')
+        $pdo->prepare('UPDATE admin_users SET password_hash = ?, must_change_credentials = FALSE WHERE id = ?')
             ->execute([password_hash($password, PASSWORD_BCRYPT), $userId]);
     }
 
@@ -179,4 +287,3 @@ final class AdminService
             ->execute([$userId, 'ADMIN_CREDIT', $amount, $description]);
     }
 }
-

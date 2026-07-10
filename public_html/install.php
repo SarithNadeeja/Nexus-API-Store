@@ -103,7 +103,7 @@ try {
 
     echo '<h1>Nexus API Store installed successfully</h1>';
     echo '<p>Database driver: <strong>' . htmlspecialchars($driver) . '</strong></p>';
-    echo '<p>Default admin: <strong>admin</strong> / <strong>Admin@123</strong></p>';
+    echo '<p>On first admin login you will be asked to set a new username and password.</p>';
     echo '<p><a href="/nexus-admin/login.php">Open Admin Panel</a> | <a href="/index.html">Open Website</a></p>';
     echo '<p style="color:#ef4444;"><strong>Delete install.php now for security.</strong></p>';
 } catch (Throwable $e) {

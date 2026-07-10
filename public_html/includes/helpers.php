@@ -78,3 +78,41 @@ function db_bool(mixed $value): bool
 {
     return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
 }
+
+function format_admin_date(?string $datetime): string
+{
+    if ($datetime === null || $datetime === '') {
+        return '—';
+    }
+
+    $date = date_create($datetime);
+    return $date ? $date->format('d M Y') : '—';
+}
+
+function format_admin_datetime(?string $datetime): string
+{
+    if ($datetime === null || $datetime === '') {
+        return '—';
+    }
+
+    $date = date_create($datetime);
+    return $date ? $date->format('d M Y H:i:s') : '—';
+}
+
+function category_visual(int $index): array
+{
+    $tones = ['tone-purple', 'tone-green', 'tone-amber', 'tone-rose', 'tone-teal'];
+    $icons = ['{ }', '🛒', '💰', '💬', '📍'];
+
+    return [
+        'tone' => $tones[$index % count($tones)],
+        'icon' => $icons[$index % count($icons)],
+    ];
+}
+
+function user_avatar_tone(int $index): string
+{
+    $tones = ['tone-blue', 'tone-purple', 'tone-green', 'tone-amber', 'tone-rose'];
+
+    return $tones[$index % count($tones)];
+}

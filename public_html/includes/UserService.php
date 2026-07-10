@@ -154,7 +154,7 @@ final class UserService
 
         $pdo->prepare('UPDATE app_users SET coin_balance = coin_balance + ? WHERE id = ?')
             ->execute([$coins, $user['id']]);
-        self::addTransaction($pdo, (int) $user['id'], 'RECHARGE', $coins, 'Coin recharge');
+        self::addTransaction($pdo, (int) $user['id'], 'RECHARGE', $coins, $coins . ' coins added to your wallet');
 
         $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');
         $stmt->execute([$user['id']]);

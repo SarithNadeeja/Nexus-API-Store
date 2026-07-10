@@ -8,20 +8,38 @@
 </head>
 <body>
   <header class="navbar" id="navbar"></header>
-  <main class="section">
-    <div class="container">
-      <div class="page-header-banner" style="padding:6rem 0 2rem;text-align:left;">
-        <div class="mesh-gradient" aria-hidden="true"></div>
-        <div class="bg-grid" aria-hidden="true"></div>
-        <div class="container" style="max-width:1280px;text-align:left;position:relative;z-index:1;">
+
+  <main class="wallet-dashboard">
+    <section class="wallet-hero">
+      <div class="mesh-gradient" aria-hidden="true"></div>
+      <div class="bg-grid" aria-hidden="true"></div>
+      <div class="container wallet-hero-inner">
+        <div class="wallet-hero-copy reveal">
           <span class="badge">Customer Dashboard</span>
-          <h1>Your <span class="gradient-text">Coin Wallet</span></h1>
-          <p>Recharge coins, track purchases, and access your API keys.</p>
+          <h1>Welcome back! 👋 Your <span class="gradient-text">Coin Wallet</span></h1>
+          <p>Recharge coins, track your usage, and access your API keys to power your projects.</p>
+        </div>
+        <div class="wallet-hero-visual reveal" aria-hidden="true">
+          <div class="wallet-visual-glow"></div>
+          <div class="wallet-visual-wallet">
+            <span class="wallet-visual-body">👛</span>
+            <span class="wallet-visual-coin coin-a">⚡</span>
+            <span class="wallet-visual-coin coin-b">◎</span>
+            <span class="wallet-visual-coin coin-c">⚡</span>
+          </div>
+          <div class="wallet-visual-api-card">
+            <span>{ }</span>
+            <strong>API</strong>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div id="dashboard-content" class="muted">Loading dashboard...</div>
-    </div>
+    <section class="section wallet-dashboard-section">
+      <div class="container">
+        <div id="dashboard-content" class="wallet-loading">Loading dashboard...</div>
+      </div>
+    </section>
   </main>
 
   <footer class="footer" id="site-footer"></footer>
@@ -31,74 +49,6 @@
   <script src="/assets/js/navbar.js"></script>
   <script src="/assets/js/footer.js"></script>
   <script src="/assets/js/effects.js"></script>
-  <script>
-    async function renderDashboard() {
-      const container = document.getElementById('dashboard-content');
-      if (NexusAuth.loading) return;
-      if (!NexusAuth.user) {
-        location.href = '/login.html';
-        return;
-      }
-
-      const user = NexusAuth.user;
-      container.innerHTML = `
-        <div class="dashboard-grid">
-          <div class="glass-card card stat"><span class="muted">Coin Balance</span><strong>${user.coinBalance}</strong></div>
-          <div class="glass-card card stat"><span class="muted">Purchased APIs</span><strong>${user.purchases.length}</strong></div>
-          <div class="glass-card card"><button class="btn btn-secondary" id="dash-logout" type="button">Logout</button></div>
-        </div>
-
-        <section style="margin-top:2rem;">
-          <h2>Recharge Coins</h2>
-          <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem;">
-            ${[100,250,500,1000].map(amount => `<button class="btn btn-primary recharge-btn" data-coins="${amount}" type="button">${amount} coins</button>`).join('')}
-          </div>
-        </section>
-
-        <div class="grid-2" style="margin-top:2rem;">
-          <section class="glass-card card">
-            <h2>Purchased API Keys</h2>
-            ${user.purchases.length ? user.purchases.map(p => `
-              <div class="list-item">
-                <strong>${p.apiName}</strong> • ${p.coinsSpent} coins
-                <div class="code">${p.purchasedKey}</div>
-                <a href="${p.accessLink}" target="_blank" rel="noreferrer">Access Link</a>
-              </div>
-            `).join('') : '<p class="muted">No API purchases yet.</p>'}
-          </section>
-          <section class="glass-card card">
-            <h2>Recent Coin Activity</h2>
-            ${user.transactions.length ? user.transactions.map(tx => `
-              <div class="list-item">
-                <strong>${tx.description}</strong>
-                <div>${tx.coinAmount >= 0 ? '+' : ''}${tx.coinAmount} coins</div>
-                <div class="muted">${new Date(tx.createdAt).toLocaleString()}</div>
-              </div>
-            `).join('') : '<p class="muted">No coin activity yet.</p>'}
-          </section>
-        </div>`;
-
-      document.getElementById('dash-logout').addEventListener('click', async () => {
-        await NexusAuth.logout();
-        location.href = '/';
-      });
-
-      container.querySelectorAll('.recharge-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          try {
-            const session = await NexusApi.recharge(Number(btn.dataset.coins));
-            NexusAuth.user = session;
-            document.dispatchEvent(new CustomEvent('nexus-auth-changed'));
-            renderDashboard();
-          } catch (err) {
-            alert(err.message);
-          }
-        });
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', renderDashboard);
-    document.addEventListener('nexus-auth-changed', renderDashboard);
-  </script>
+  <script src="/assets/js/dashboard.js"></script>
 </body>
 </html>

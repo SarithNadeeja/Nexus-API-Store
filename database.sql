@@ -22,6 +22,22 @@ CREATE TABLE IF NOT EXISTS api_listings (
     CONSTRAINT fk_api_listings_category FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
+CREATE TABLE IF NOT EXISTS api_key_inventory (
+    id BIGSERIAL PRIMARY KEY,
+    api_listing_id BIGINT NOT NULL,
+    key_link VARCHAR(500) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
+    assigned_user_id BIGINT NULL,
+    api_purchase_id BIGINT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    assigned_at TIMESTAMP NULL,
+    CONSTRAINT fk_api_key_inventory_listing FOREIGN KEY (api_listing_id) REFERENCES api_listings(id) ON DELETE CASCADE,
+    CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id),
+    CONSTRAINT uk_api_key_inventory_link UNIQUE (key_link)
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status);
+
 CREATE TABLE IF NOT EXISTS admin_users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -82,7 +98,7 @@ CREATE TABLE IF NOT EXISTS api_purchases (
     user_id BIGINT NOT NULL,
     api_listing_id BIGINT NOT NULL,
     coins_spent INTEGER NOT NULL,
-    purchased_key_snapshot VARCHAR(255) NOT NULL,
+    purchased_key_snapshot VARCHAR(500) NOT NULL,
     access_link_snapshot VARCHAR(500) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_api_purchases_user FOREIGN KEY (user_id) REFERENCES app_users(id),

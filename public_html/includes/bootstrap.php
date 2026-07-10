@@ -31,6 +31,7 @@ require_once __DIR__ . '/Mailer.php';
 require_once __DIR__ . '/UserService.php';
 require_once __DIR__ . '/AdminService.php';
 require_once __DIR__ . '/CoinPackageService.php';
+require_once __DIR__ . '/ApiKeyPoolService.php';
 require_once __DIR__ . '/VerificationService.php';
 
 try {
@@ -47,4 +48,10 @@ try {
     CoinPackageService::ensureSchema($pdo);
 } catch (Throwable $e) {
     error_log('Coin schema initialization failed: ' . $e->getMessage());
+}
+
+try {
+    ApiKeyPoolService::ensureSchema($pdo);
+} catch (Throwable $e) {
+    error_log('API key pool schema initialization failed: ' . $e->getMessage());
 }

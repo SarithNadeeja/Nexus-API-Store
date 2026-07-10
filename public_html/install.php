@@ -29,6 +29,7 @@ function pgTables(): array
     return [
         'categories',
         'api_listings',
+        'api_key_inventory',
         'admin_users',
         'app_users',
         'coin_transactions',

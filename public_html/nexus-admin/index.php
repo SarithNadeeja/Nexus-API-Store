@@ -13,6 +13,7 @@ $error = flash('error');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $redirectUrl = '/nexus-admin/index.php?section=' . urlencode($_POST['return_section'] ?? $section);
     try {
         switch ($action) {
             case 'save_category':
@@ -22,7 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AdminService::deleteCategory($pdo, (int) ($_POST['id'] ?? 0));
                 break;
             case 'save_api':
-                AdminService::saveApi($pdo, $_POST);
+                $saveResult = AdminService::saveApi($pdo, $_POST);
+                flash('success', $saveResult['message'] ?? 'Changes saved successfully.');
+                $redirectUrl = '/nexus-admin/index.php?section=apis' . (!empty($saveResult['listingId']) ? '&edit=' . (int) $saveResult['listingId'] : '');
                 break;
             case 'delete_api':
                 AdminService::deleteApi($pdo, (int) ($_POST['id'] ?? 0));
@@ -60,11 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             default:
                 throw new InvalidArgumentException('Unknown action.');
         }
-        flash('success', 'Changes saved successfully.');
+        if ($action !== 'save_api') {
+            flash('success', 'Changes saved successfully.');
+        }
     } catch (InvalidArgumentException $e) {
         flash('error', $e->getMessage());
     }
-    redirect('/nexus-admin/index.php?section=' . urlencode($_POST['return_section'] ?? $section));
+    redirect($redirectUrl);
 }
 
 $counts = AdminService::counts($pdo);
@@ -79,6 +84,24 @@ if ($section === 'dashboard') {
 }
 $categories = $pdo->query('SELECT * FROM categories ORDER BY name')->fetchAll();
 $apis = $pdo->query('SELECT a.*, c.name AS category_name FROM api_listings a JOIN categories c ON c.id = a.category_id ORDER BY a.id DESC')->fetchAll();
+$editApiId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editApi = null;
+$editApiKeyCounts = ['total' => 0, 'available' => 0, 'assigned' => 0];
+
+if ($section === 'apis') {
+    ApiKeyPoolService::ensureSchema($pdo);
+    foreach ($apis as &$apiRow) {
+        $counts = ApiKeyPoolService::countsForListing($pdo, (int) $apiRow['id']);
+        $apiRow['key_total'] = $counts['total'];
+        $apiRow['key_available'] = $counts['available'];
+        $apiRow['key_assigned'] = $counts['assigned'];
+        if ($editApiId > 0 && (int) $apiRow['id'] === $editApiId) {
+            $editApi = $apiRow;
+            $editApiKeyCounts = $counts;
+        }
+    }
+    unset($apiRow);
+}
 $users = $pdo->query('SELECT * FROM app_users ORDER BY created_at DESC')->fetchAll();
 $coinPackages = [];
 $coinSettings = CoinPackageService::getCustomSettings($pdo);
@@ -509,46 +532,124 @@ $username = Auth::adminUsername();
         <?php if ($section === 'apis'): ?>
         <section class="section-block">
             <div class="card">
-                <h4>Add / Update API Listing</h4>
-                <form method="post" class="form-grid">
+                <div class="panel-title-row" style="margin-bottom:1rem;">
+                    <div>
+                        <h4 id="api-form-title"><?= $editApi ? 'Update API Listing' : 'Add API Listing' ?></h4>
+                        <p class="muted" style="margin:0.35rem 0 0;">One listing name and category can hold many unique API key links. Each link is assigned to one customer on purchase.</p>
+                    </div>
+                    <?php if ($editApi): ?>
+                        <a class="btn btn-secondary btn-sm" href="?section=apis">Add New Listing</a>
+                    <?php endif; ?>
+                </div>
+                <form method="post" class="form-grid" id="api-form">
                     <input type="hidden" name="action" value="save_api">
                     <input type="hidden" name="return_section" value="apis">
-                    <input type="hidden" name="id" id="api-id">
-                    <label>Name<input name="name" required></label>
-                    <label>Status<input name="status" value="ACTIVE" required></label>
-                    <label>Category
-                        <select name="category_id" required>
-                            <?php foreach ($categories as $cat): ?><option value="<?= (int) $cat['id'] ?>"><?= h($cat['name']) ?></option><?php endforeach; ?>
+                    <input type="hidden" name="id" id="api-id" value="<?= $editApi ? (int) $editApi['id'] : '' ?>">
+                    <label>Name<input name="name" id="api-name" required value="<?= $editApi ? h($editApi['name']) : '' ?>"></label>
+                    <label>Status
+                        <select name="status" id="api-status" required>
+                            <?php foreach (['ACTIVE', 'INACTIVE'] as $statusOption): ?>
+                                <option value="<?= $statusOption ?>" <?= ($editApi['status'] ?? 'ACTIVE') === $statusOption ? 'selected' : '' ?>><?= $statusOption ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </label>
-                    <label>Price (coins)<input type="number" name="price_coins" min="1" value="50" required></label>
-                    <label class="full-span">Access Link<input name="access_link" required></label>
-                    <label class="full-span">Description<textarea name="description" rows="3"></textarea></label>
-                    <div class="full-span"><button class="primary-btn" type="submit">Save API</button></div>
+                    <label>Category
+                        <select name="category_id" id="api-category" required>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?= (int) $cat['id'] ?>" <?= $editApi && (int) $editApi['category_id'] === (int) $cat['id'] ? 'selected' : '' ?>><?= h($cat['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label>Price (coins)<input type="number" name="price_coins" id="api-price" min="1" value="<?= $editApi ? (int) $editApi['price_coins'] : 50 ?>" required></label>
+                    <label class="full-span">Documentation / Access Link<input name="access_link" id="api-access" required placeholder="https://docs.nexus.dev/..." value="<?= $editApi ? h($editApi['access_link']) : '' ?>"></label>
+                    <label class="full-span">Description<textarea name="description" id="api-description" rows="3"><?= $editApi ? h($editApi['description'] ?? '') : '' ?></textarea></label>
+                    <label class="full-span">
+                        <?= $editApi ? 'Add More API Key Links' : 'API Key Links' ?>
+                        <textarea name="bulk_key_links" id="api-bulk-keys" rows="12" placeholder="https://ex-api.nexus.dev/key-001&#10;https://ex-api.nexus.dev/key-002&#10;https://ex-api.nexus.dev/key-003"></textarea>
+                        <span class="field-hint">Paste one unique link per line. You can upload 100+ links for the same listing name and category. Lines starting with # are ignored.</span>
+                        <span class="field-hint" id="api-bulk-count">0 links ready to upload</span>
+                    </label>
+                    <?php if ($editApi): ?>
+                        <div class="full-span key-pool-stats">
+                            <strong>Key pool:</strong>
+                            <span class="pill pill-emerald"><?= (int) $editApiKeyCounts['available'] ?> available</span>
+                            <span class="pill"><?= (int) $editApiKeyCounts['assigned'] ?> assigned</span>
+                            <span class="pill pill-cyan"><?= (int) $editApiKeyCounts['total'] ?> total</span>
+                        </div>
+                    <?php endif; ?>
+                    <div class="full-span form-actions">
+                        <button class="primary-btn" type="submit"><?= $editApi ? 'Save Changes' : 'Create Listing & Upload Keys' ?></button>
+                        <button class="btn btn-secondary" type="button" id="api-reset-btn">Clear Form</button>
+                    </div>
                 </form>
             </div>
             <div class="table-card">
+                <div class="panel-title-row" style="margin-bottom:1rem;">
+                    <div>
+                        <h4>API Listings</h4>
+                        <p class="muted" style="margin:0.35rem 0 0;">Each row is one product. Keys are drawn from the pool when a user purchases.</p>
+                    </div>
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="api-table-search" placeholder="Search listings..." autocomplete="off">
+                    </label>
+                </div>
                 <table>
-                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Key</th><th>Actions</th></tr></thead>
-                    <tbody>
+                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Available</th><th>Total Keys</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="api-table-body">
                     <?php foreach ($apis as $api): ?>
-                        <tr>
+                        <tr data-row>
                             <td><?= h($api['name']) ?></td>
                             <td><?= h($api['category_name']) ?></td>
                             <td><?= (int) $api['price_coins'] ?> coins</td>
-                            <td><code><?= h($api['api_key_value']) ?></code></td>
+                            <td><span class="pill <?= (int) ($api['key_available'] ?? 0) > 0 ? 'pill-emerald' : 'pill-amber' ?>"><?= (int) ($api['key_available'] ?? 0) ?></span></td>
+                            <td><?= (int) ($api['key_total'] ?? 0) ?></td>
+                            <td><?= h($api['status']) ?></td>
                             <td>
-                                <form method="post" class="inline-form" onsubmit="return confirm('Delete this API?')">
-                                    <input type="hidden" name="action" value="delete_api">
-                                    <input type="hidden" name="return_section" value="apis">
-                                    <input type="hidden" name="id" value="<?= (int) $api['id'] ?>">
-                                    <button class="danger-btn" type="submit">Delete</button>
-                                </form>
+                                <div class="table-actions">
+                                    <button
+                                        class="icon-action"
+                                        type="button"
+                                        title="Edit"
+                                        data-edit-api
+                                        data-id="<?= (int) $api['id'] ?>"
+                                        data-name="<?= h($api['name']) ?>"
+                                        data-status="<?= h($api['status']) ?>"
+                                        data-category-id="<?= (int) $api['category_id'] ?>"
+                                        data-price="<?= (int) $api['price_coins'] ?>"
+                                        data-access="<?= h($api['access_link']) ?>"
+                                        data-description="<?= h($api['description'] ?? '') ?>"
+                                        data-available="<?= (int) ($api['key_available'] ?? 0) ?>"
+                                        data-assigned="<?= (int) ($api['key_assigned'] ?? 0) ?>"
+                                        data-total="<?= (int) ($api['key_total'] ?? 0) ?>"
+                                    >✎</button>
+                                    <form method="post" class="inline-form" onsubmit="return confirm('Delete this API listing and all key links?')">
+                                        <input type="hidden" name="action" value="delete_api">
+                                        <input type="hidden" name="return_section" value="apis">
+                                        <input type="hidden" name="id" value="<?= (int) $api['id'] ?>">
+                                        <button class="icon-action delete" type="submit" title="Delete">🗑</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if (!$apis): ?>
+                        <tr>
+                            <td colspan="7" class="empty-copy">No API listings yet. Create one above and paste your key links.</td>
+                        </tr>
+                    <?php endif; ?>
                     </tbody>
                 </table>
+                <div class="table-footer">
+                    <div class="pagination" id="api-pagination"></div>
+                    <label class="per-page">
+                        <select id="api-per-page">
+                            <option value="5">5 per page</option>
+                            <option value="10" selected>10 per page</option>
+                            <option value="20">20 per page</option>
+                        </select>
+                    </label>
+                </div>
             </div>
         </section>
         <?php endif; ?>

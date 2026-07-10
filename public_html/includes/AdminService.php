@@ -188,8 +188,10 @@ final class AdminService
         $pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$id]);
     }
 
-    public static function saveApi(PDO $pdo, array $data): void
+    public static function saveApi(PDO $pdo, array $data): array
     {
+        ApiKeyPoolService::ensureSchema($pdo);
+
         $required = ['name', 'access_link', 'status', 'category_id', 'price_coins'];
         foreach ($required as $field) {
             if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
@@ -209,22 +211,19 @@ final class AdminService
         }
 
         $accessLink = trim((string) $data['access_link']);
-        $endpointUrl = trim((string) ($data['endpoint_url'] ?? ''));
-        if ($endpointUrl === '') {
-            $endpointUrl = (string) ($existing['endpoint_url'] ?? $accessLink);
-        }
+        $bulkRaw = trim((string) ($data['bulk_key_links'] ?? ''));
+        $bulkLinks = $bulkRaw !== '' ? ApiKeyPoolService::parseBulkLinks($bulkRaw) : [];
 
-        $apiKeyValue = trim((string) ($data['api_key_value'] ?? ''));
-        if ($apiKeyValue === '') {
-            $apiKeyValue = (string) ($existing['api_key_value'] ?? self::generateApiKeyValue());
+        if (!$id && !$bulkLinks) {
+            throw new InvalidArgumentException('Add at least one API key link (one per line).');
         }
 
         $payload = [
             trim((string) $data['name']),
             trim((string) ($data['description'] ?? '')),
-            $endpointUrl,
             $accessLink,
-            $apiKeyValue,
+            $accessLink,
+            ApiKeyPoolService::POOL_MARKER,
             trim((string) $data['status']),
             (int) $data['price_coins'],
             (int) $data['category_id'],
@@ -236,18 +235,37 @@ final class AdminService
                 'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=? WHERE id=?'
             )->execute($payload);
 
-            return;
+            $keysAdded = $bulkLinks ? ApiKeyPoolService::addKeys($pdo, $id, $bulkLinks) : 0;
+            $counts = ApiKeyPoolService::countsForListing($pdo, $id);
+            if ($counts['total'] === 0) {
+                throw new InvalidArgumentException('This listing has no API key links. Paste links in the bulk field.');
+            }
+
+            $message = 'API listing updated.';
+            if ($keysAdded > 0) {
+                $skipped = count($bulkLinks) - $keysAdded;
+                $message = "Added {$keysAdded} new API key link" . ($keysAdded === 1 ? '' : 's') . '.';
+                if ($skipped > 0) {
+                    $message .= " {$skipped} duplicate link" . ($skipped === 1 ? ' was' : 's were') . ' skipped.';
+                }
+            }
+
+            return ['listingId' => $id, 'keysAdded' => $keysAdded, 'message' => $message];
         }
 
         $pdo->prepare(
             'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute($payload);
-    }
 
-    private static function generateApiKeyValue(): string
-    {
-        return 'nxk_live_' . bin2hex(random_bytes(16));
+        $listingId = Database::lastInsertId($pdo, 'api_listings');
+        $keysAdded = ApiKeyPoolService::addKeys($pdo, $listingId, $bulkLinks);
+
+        return [
+            'listingId' => $listingId,
+            'keysAdded' => $keysAdded,
+            'message' => "API listing created with {$keysAdded} API key link" . ($keysAdded === 1 ? '' : 's') . '.',
+        ];
     }
 
     public static function deleteApi(PDO $pdo, int $id): void

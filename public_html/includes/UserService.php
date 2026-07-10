@@ -114,12 +114,17 @@ final class UserService
 
     public static function getPublicApis(PDO $pdo): array
     {
+        ApiKeyPoolService::ensureSchema($pdo);
         $userId = Auth::appUserId();
         $stmt = $pdo->query(
-            'SELECT a.id, a.name, a.description, a.endpoint_url, a.status, a.price_coins, c.name AS category
+            "SELECT a.id, a.name, a.description, a.access_link, a.status, a.price_coins, c.name AS category,
+                    COUNT(k.id) FILTER (WHERE k.status = 'AVAILABLE')::int AS available_keys
              FROM api_listings a
              JOIN categories c ON c.id = a.category_id
-             ORDER BY a.id ASC'
+             LEFT JOIN api_key_inventory k ON k.api_listing_id = a.id
+             WHERE a.status = 'ACTIVE'
+             GROUP BY a.id, c.name
+             ORDER BY a.id ASC"
         );
         $rows = $stmt->fetchAll();
         $result = [];
@@ -131,14 +136,21 @@ final class UserService
                 $check->execute([$userId, $row['id']]);
                 $purchased = (bool) $check->fetch();
             }
+
+            $availableKeys = (int) $row['available_keys'];
+            if ($availableKeys === 0 && !$purchased) {
+                continue;
+            }
+
             $result[] = [
                 'id' => (int) $row['id'],
                 'name' => $row['name'],
                 'description' => $row['description'],
                 'category' => $row['category'],
                 'status' => $row['status'],
-                'endpointUrl' => $row['endpoint_url'],
+                'endpointUrl' => $row['access_link'],
                 'priceCoins' => (int) $row['price_coins'],
+                'availableKeys' => $availableKeys,
                 'purchased' => $purchased,
             ];
         }
@@ -233,11 +245,16 @@ final class UserService
 
     public static function purchase(PDO $pdo, array $user, int $apiId): array
     {
+        ApiKeyPoolService::ensureSchema($pdo);
+
         $stmt = $pdo->prepare('SELECT * FROM api_listings WHERE id = ?');
         $stmt->execute([$apiId]);
         $api = $stmt->fetch();
         if (!$api) {
             throw new InvalidArgumentException('API listing not found.');
+        }
+        if ($api['status'] !== 'ACTIVE') {
+            throw new InvalidArgumentException('This API is not available for purchase.');
         }
 
         $check = $pdo->prepare('SELECT id FROM api_purchases WHERE user_id = ? AND api_listing_id = ?');
@@ -253,25 +270,39 @@ final class UserService
 
         $pdo->beginTransaction();
         try {
-            $pdo->prepare('UPDATE app_users SET coin_balance = coin_balance - ? WHERE id = ?')
-                ->execute([$price, $user['id']]);
+            $key = ApiKeyPoolService::assignKeyForPurchase($pdo, $apiId, (int) $user['id']);
+            if (!$key) {
+                throw new InvalidArgumentException('This API is sold out. No keys are available right now.');
+            }
+
+            $deduct = $pdo->prepare(
+                'UPDATE app_users SET coin_balance = coin_balance - ? WHERE id = ? AND coin_balance >= ?'
+            );
+            $deduct->execute([$price, $user['id'], $price]);
+            if ($deduct->rowCount() === 0) {
+                throw new InvalidArgumentException('Not enough coins for this purchase.');
+            }
+
             $pdo->prepare(
                 'INSERT INTO api_purchases (user_id, api_listing_id, coins_spent, purchased_key_snapshot, access_link_snapshot)
                  VALUES (?, ?, ?, ?, ?)'
-            )->execute([$user['id'], $apiId, $price, $api['api_key_value'], $api['access_link']]);
+            )->execute([$user['id'], $apiId, $price, $key['key_link'], $api['access_link']]);
+            $purchaseId = Database::lastInsertId($pdo, 'api_purchases');
+            ApiKeyPoolService::attachPurchaseToKey($pdo, (int) $key['id'], $purchaseId);
             self::addTransaction($pdo, (int) $user['id'], 'PURCHASE', -$price, 'Purchased ' . $api['name']);
             $pdo->commit();
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             throw $e;
         }
 
-        $purchaseId = Database::lastInsertId($pdo, 'api_purchases');
         return [
             'purchaseId' => $purchaseId,
             'apiName' => $api['name'],
             'coinsSpent' => $price,
-            'purchasedKey' => $api['api_key_value'],
+            'purchasedKey' => $key['key_link'],
             'accessLink' => $api['access_link'],
             'purchasedAt' => date('c'),
         ];

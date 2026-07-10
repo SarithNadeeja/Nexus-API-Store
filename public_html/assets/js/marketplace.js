@@ -46,16 +46,19 @@ async function renderMarketplace(containerId, options = {}) {
           <span class="mini-tag">Auth: API Key</span>
           <span class="mini-tag">Format: JSON</span>
           <span class="mini-tag mini-tag-amber">${api.priceCoins} coins</span>
+          ${api.availableKeys > 0 ? `<span class="mini-tag mini-tag-cyan">${api.availableKeys} keys left</span>` : '<span class="mini-tag">Sold out</span>'}
         </div>
         <div class="endpoint-box">
           <div class="endpoint-title">◎ Buy with your account balance</div>
-          <div class="endpoint-url">Endpoint: <span>${escapeHtml(api.endpointUrl)}</span></div>
+          <div class="endpoint-url">Docs: <span>${escapeHtml(api.endpointUrl)}</span></div>
         </div>
         <div class="card-actions">
           <a class="btn btn-secondary btn-sm" href="${escapeHtml(api.endpointUrl)}" target="_blank" rel="noreferrer">View Docs</a>
           ${api.purchased
             ? '<a class="btn btn-primary btn-sm" href="/dashboard.html">View Purchased Key</a>'
-            : `<button class="btn btn-primary btn-sm buy-api-btn" data-api-id="${api.id}" type="button">Buy with Coins</button>`}
+            : api.availableKeys > 0
+              ? `<button class="btn btn-primary btn-sm buy-api-btn" data-api-id="${api.id}" type="button">Buy with Coins</button>`
+              : '<button class="btn btn-secondary btn-sm" type="button" disabled>Sold Out</button>'}
         </div>
       </article>
     `).join('');

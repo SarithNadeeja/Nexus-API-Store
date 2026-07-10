@@ -63,7 +63,7 @@ final class Auth
     public static function requireVerifiedAppUser(PDO $pdo): array
     {
         $user = self::requireAppUser($pdo);
-        if (!(int) $user['email_verified']) {
+        if (!db_bool($user['email_verified'])) {
             json_error('Please verify your email address before using coins or buying API keys.');
         }
         return $user;

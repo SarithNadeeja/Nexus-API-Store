@@ -11,95 +11,495 @@
   <header class="navbar" id="navbar"></header>
 
   <main>
+    <!-- Hero -->
     <section class="hero">
-      <div class="container hero-grid">
-        <div>
-          <span class="badge">The API Layer for Modern Products</span>
-          <h1>One Platform. <span class="gradient-text">Powerful APIs.</span> Build Without Limits.</h1>
-          <p>Discover production-ready API services, buy access with coins, and integrate faster with Nexus API Store.</p>
-          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1.5rem;">
-            <a class="btn btn-primary" href="#featured-apis">Explore APIs</a>
-            <a class="btn btn-secondary" href="/api-keys.html">Get API Access</a>
+      <div class="hero-bg" aria-hidden="true">
+        <div class="mesh-gradient"></div>
+        <div class="bg-grid"></div>
+        <div class="hero-orb hero-orb-cyan"></div>
+        <div class="hero-orb hero-orb-blue"></div>
+        <div class="hero-orb hero-orb-purple"></div>
+        <div id="hero-particles"></div>
+      </div>
+
+      <div class="container hero-content">
+        <div class="hero-grid">
+          <div>
+            <div class="hero-badge hero-enter">
+              <span class="hero-badge-dot"></span>
+              The API Layer for Modern Products
+            </div>
+            <h1 class="hero-enter">
+              One Platform.<br>
+              <span class="gradient-text">Powerful APIs.</span><br>
+              Build Without Limits.
+            </h1>
+            <p class="hero-enter">
+              Discover production-ready API services for automation, data processing, media utilities,
+              business workflows, communication, and developer tools. Explore services, choose the right
+              access plan, and integrate through a secure developer experience.
+            </p>
+            <div class="hero-enter hero-actions">
+              <div class="magnetic-wrap">
+                <a class="btn btn-primary btn-icon" href="#featured-apis">
+                  Explore APIs
+                  <span aria-hidden="true">→</span>
+                </a>
+              </div>
+              <div class="magnetic-wrap">
+                <a class="btn btn-secondary btn-icon" href="https://wa.me/" target="_blank" rel="noreferrer">
+                  <span aria-hidden="true">💬</span>
+                  Get Access on WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-terminal-wrap hero-enter">
+            <div class="floating-card floating-card-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Secure Access
+            </div>
+            <div class="floating-card floating-card-2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Rate Limited
+            </div>
+            <div class="floating-card floating-card-3">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 5-7"/></svg>
+              Usage Analytics
+            </div>
+            <div class="floating-card floating-card-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              99.9% Availability Target
+            </div>
+
+            <div class="terminal-card">
+              <div class="terminal-titlebar">
+                <div style="display:flex;gap:0.4rem;">
+                  <span class="terminal-dot terminal-dot-red"></span>
+                  <span class="terminal-dot terminal-dot-yellow"></span>
+                  <span class="terminal-dot terminal-dot-green"></span>
+                </div>
+                <span class="terminal-host">api.nexusapistore.com</span>
+              </div>
+              <div class="terminal-body">
+                <div id="terminal-request"></div>
+                <div id="terminal-response" class="terminal-response"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="glass-card card">
-          <div class="badge">Live Terminal</div>
-          <pre class="code" style="margin-top:1rem;">curl https://api.example.com/v1/process \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json"</pre>
+      </div>
+    </section>
+
+    <!-- TrustBar -->
+    <section class="section section-band" style="padding:3rem 0;">
+      <div class="container trust-grid">
+        <div class="glass-card hover-card card reveal reveal-delay-1">
+          <div class="feature-icon">✓</div>
+          <h3>Verified API Listings</h3>
+          <p class="muted">Every service is reviewed for documentation quality and reliability.</p>
+        </div>
+        <div class="glass-card hover-card card reveal reveal-delay-2">
+          <div class="feature-icon">🔑</div>
+          <h3>Secure Access Keys</h3>
+          <p class="muted">Credential management with controlled distribution and rotation support.</p>
+        </div>
+        <div class="glass-card hover-card card reveal reveal-delay-3">
+          <div class="feature-icon">◎</div>
+          <h3>Usage Limits</h3>
+          <p class="muted">Transparent quotas and rate limits tailored to your access plan.</p>
+        </div>
+        <div class="glass-card hover-card card reveal reveal-delay-4">
+          <div class="feature-icon">🎧</div>
+          <h3>Developer Support</h3>
+          <p class="muted">Responsive assistance for integration, access requests, and troubleshooting.</p>
         </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="container grid-3">
-        <div class="glass-card card"><h3>Verified API Listings</h3><p class="muted">Curated APIs reviewed before they go live.</p></div>
-        <div class="glass-card card"><h3>Secure Access Keys</h3><p class="muted">Keys are delivered only after purchase.</p></div>
-        <div class="glass-card card"><h3>Coin Wallet System</h3><p class="muted">Recharge coins and unlock APIs instantly.</p></div>
-      </div>
-    </section>
-
+    <!-- ApiCategories -->
     <section class="section" id="categories">
       <div class="container">
-        <div class="page-header" style="padding-top:0;">
-          <span class="badge">Categories</span>
-          <h2>Browse by <span class="gradient-text">Use Case</span></h2>
+        <div class="section-intro reveal">
+          <h2 class="section-heading">Everything You Need to <span class="gradient-text">Build Faster</span></h2>
+          <p class="section-subheading">Explore API services organized around common developer and business workflows.</p>
         </div>
-        <div class="grid-3">
-          <div class="glass-card card"><h3>AI & Automation</h3></div>
-          <div class="glass-card card"><h3>Data Processing</h3></div>
-          <div class="glass-card card"><h3>Media Utilities</h3></div>
-          <div class="glass-card card"><h3>Business Workflows</h3></div>
-          <div class="glass-card card"><h3>Finance</h3></div>
-          <div class="glass-card card"><h3>Developer Utilities</h3></div>
+        <div class="category-grid">
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-1">
+            <div class="category-icon category-icon-cyan">🤖</div>
+            <div>
+              <h3>AI &amp; Automation</h3>
+              <p class="muted">Intelligent text processing, workflow automation, and smart task APIs.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">12 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-2">
+            <div class="category-icon category-icon-blue">🗄</div>
+            <div>
+              <h3>Data Processing</h3>
+              <p class="muted">Transform, validate, clean, and enrich structured and unstructured data.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">18 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-3">
+            <div class="category-icon category-icon-purple">🎬</div>
+            <div>
+              <h3>Media Utilities</h3>
+              <p class="muted">Metadata extraction, format conversion, and media asset management tools.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">9 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-4">
+            <div class="category-icon category-icon-emerald">🏢</div>
+            <div>
+              <h3>Business Tools</h3>
+              <p class="muted">Company lookups, document processing, and operational workflow APIs.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">14 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-5">
+            <div class="category-icon category-icon-amber">📈</div>
+            <div>
+              <h3>Finance &amp; Market Data</h3>
+              <p class="muted">Currency rates, market indicators, and financial reference data services.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">7 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-6">
+            <div class="category-icon category-icon-rose">💬</div>
+            <div>
+              <h3>Communication APIs</h3>
+              <p class="muted">Notifications, messaging integrations, and multi-channel delivery services.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">11 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-1">
+            <div class="category-icon category-icon-sky">⌨</div>
+            <div>
+              <h3>Developer Utilities</h3>
+              <p class="muted">Formatting, encoding, validation, and productivity tools for developers.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">16 APIs</span><span class="category-arrow">→</span></div>
+          </a>
+          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-2">
+            <div class="category-icon category-icon-violet">🛡</div>
+            <div>
+              <h3>Verification Tools</h3>
+              <p class="muted">Identity checks, data validation, and compliance-ready verification services.</p>
+            </div>
+            <div class="category-footer"><span class="category-count">8 APIs</span><span class="category-arrow">→</span></div>
+          </a>
         </div>
       </div>
     </section>
 
-    <section class="section" id="featured-apis">
+    <!-- FeaturedApis -->
+    <section class="section section-glow" id="featured-apis">
       <div class="container">
-        <div class="page-header" style="padding-top:0;">
-          <span class="badge">Marketplace</span>
-          <h2>Featured <span class="gradient-text">API Services</span></h2>
-        </div>
         <div id="featured-apis-list"></div>
       </div>
     </section>
 
+    <!-- HowItWorks -->
     <section class="section" id="how-it-works">
-      <div class="container grid-2">
-        <div class="glass-card card"><h3>1. Explore APIs</h3><p class="muted">Browse categories and featured services.</p></div>
-        <div class="glass-card card"><h3>2. Recharge Coins</h3><p class="muted">Top up your wallet from the dashboard.</p></div>
-        <div class="glass-card card"><h3>3. Buy API Keys</h3><p class="muted">Purchase access with your coin balance.</p></div>
-        <div class="glass-card card"><h3>4. Integrate</h3><p class="muted">Use your key and access link immediately.</p></div>
+      <div class="container">
+        <div class="section-intro reveal">
+          <h2 class="section-heading">How It <span class="gradient-text">Works</span></h2>
+          <p class="section-subheading">From discovery to production — a clear path to integrating the APIs your application needs.</p>
+        </div>
+        <div class="timeline">
+          <div class="timeline-line" aria-hidden="true"></div>
+
+          <div class="timeline-step reveal reveal-delay-1">
+            <div class="timeline-dot" aria-hidden="true"></div>
+            <div class="timeline-spacer" aria-hidden="true"></div>
+            <div class="timeline-content">
+              <div class="glass-card timeline-card">
+                <div class="timeline-card-head">
+                  <div class="feature-icon" style="margin:0;">🔍</div>
+                  <span class="timeline-number">01</span>
+                </div>
+                <h3>Explore</h3>
+                <p class="muted">Find the API service that matches your project.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-step reveal reveal-delay-2">
+            <div class="timeline-dot" aria-hidden="true"></div>
+            <div class="timeline-spacer" aria-hidden="true"></div>
+            <div class="timeline-content">
+              <div class="glass-card timeline-card">
+                <div class="timeline-card-head">
+                  <div class="feature-icon" style="margin:0;">📖</div>
+                  <span class="timeline-number">02</span>
+                </div>
+                <h3>Review</h3>
+                <p class="muted">Read documentation, authentication requirements, and usage plans.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-step reveal reveal-delay-3">
+            <div class="timeline-dot" aria-hidden="true"></div>
+            <div class="timeline-spacer" aria-hidden="true"></div>
+            <div class="timeline-content">
+              <div class="glass-card timeline-card">
+                <div class="timeline-card-head">
+                  <div class="feature-icon" style="margin:0;">🔑</div>
+                  <span class="timeline-number">03</span>
+                </div>
+                <h3>Request Access</h3>
+                <p class="muted">Contact the team and select the appropriate access plan.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-step reveal reveal-delay-4">
+            <div class="timeline-dot" aria-hidden="true"></div>
+            <div class="timeline-spacer" aria-hidden="true"></div>
+            <div class="timeline-content">
+              <div class="glass-card timeline-card">
+                <div class="timeline-card-head">
+                  <div class="feature-icon" style="margin:0;">🔌</div>
+                  <span class="timeline-number">04</span>
+                </div>
+                <h3>Integrate</h3>
+                <p class="muted">Receive approved access credentials and integrate using documentation.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-step reveal reveal-delay-5">
+            <div class="timeline-dot" aria-hidden="true"></div>
+            <div class="timeline-spacer" aria-hidden="true"></div>
+            <div class="timeline-content">
+              <div class="glass-card timeline-card">
+                <div class="timeline-card-head">
+                  <div class="feature-icon" style="margin:0;">📊</div>
+                  <span class="timeline-number">05</span>
+                </div>
+                <h3>Monitor</h3>
+                <p class="muted">Track usage, quota, and access status from the customer dashboard.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
+    <!-- SecuritySection -->
+    <section class="section section-security" id="security" style="position:relative;">
+      <div class="container">
+        <div class="section-intro reveal">
+          <h2 class="section-heading">Security Built Into <span class="gradient-text">Every Layer</span></h2>
+          <p class="section-subheading">Nexus API Store is designed around controlled API access, quota management, request monitoring, and responsible API usage.</p>
+        </div>
+        <div class="grid-3">
+          <div class="glass-card glass-card-hover card reveal reveal-delay-1">
+            <div class="value-icon">🔑</div>
+            <h3>Access Credential Protection</h3>
+            <p class="muted">Secure storage and controlled distribution of API keys and access tokens.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-2">
+            <div class="value-icon">◎</div>
+            <h3>Per-Customer Rate Limits</h3>
+            <p class="muted">Configurable request throttling to protect services and ensure fair usage.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-3">
+            <div class="value-icon">🛡</div>
+            <h3>Quota Enforcement</h3>
+            <p class="muted">Automated quota tracking with clear limits aligned to your access plan.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-4">
+            <div class="value-icon">📄</div>
+            <h3>Request Logging</h3>
+            <p class="muted">Comprehensive audit trails for monitoring, debugging, and compliance review.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-5">
+            <div class="value-icon">👥</div>
+            <h3>Role-Based Access Control</h3>
+            <p class="muted">Granular permissions for team members across APIs and environments.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-6">
+            <div class="value-icon">⚠</div>
+            <h3>Abuse Monitoring</h3>
+            <p class="muted">Continuous monitoring for anomalous patterns and policy violations.</p>
+          </div>
+        </div>
+
+        <div class="glass-card card reveal" style="margin-top:4rem;padding:2rem 2.5rem;">
+          <h3 class="center-text">Layered Protection Architecture</h3>
+          <p class="muted center-text" style="max-width:36rem;margin:0.5rem auto 0;">WAF-ready edge protection with rate limiting, authentication, and abuse monitoring at every stage.</p>
+          <div class="flow-steps">
+            <span class="flow-step">Client</span><span class="flow-arrow">→</span>
+            <span class="flow-step">Edge Protection</span><span class="flow-arrow">→</span>
+            <span class="flow-step">WAF</span><span class="flow-arrow">→</span>
+            <span class="flow-step">Rate Limiter</span><span class="flow-arrow">→</span>
+            <span class="flow-step">Authentication</span><span class="flow-arrow">→</span>
+            <span class="flow-step">API Service</span>
+          </div>
+          <p class="muted center-text" style="max-width:48rem;margin:2rem auto 0;font-size:0.85rem;">No internet system can be guaranteed to be completely attack-proof, but a layered security architecture helps reduce abuse and protect services.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PricingPreview -->
     <section class="section" id="pricing">
-      <div class="container grid-3">
-        <div class="glass-card card"><h3>Starter</h3><p class="muted">10,000 requests/month</p></div>
-        <div class="glass-card card" style="border-color:rgba(34,211,238,.35);"><h3>Pro</h3><p class="muted">100,000 requests/month</p></div>
-        <div class="glass-card card"><h3>Business</h3><p class="muted">Custom limits and support</p></div>
+      <div class="container">
+        <div class="section-intro reveal">
+          <h2 class="section-heading">Simple, Transparent <span class="gradient-text">Pricing</span></h2>
+          <p class="section-subheading">Choose an access plan that fits your project. Upgrade as your usage grows.</p>
+        </div>
+        <div class="pricing-grid">
+          <div class="pricing-card reveal reveal-delay-1">
+            <h3>Starter</h3>
+            <p class="muted">For small projects</p>
+            <ul class="pricing-features">
+              <li><span class="check-icon">✓</span>10,000 requests/month</li>
+              <li><span class="check-icon">✓</span>Basic support</li>
+              <li><span class="check-icon">✓</span>Usage dashboard</li>
+            </ul>
+            <div class="magnetic-wrap" style="margin-top:2rem;">
+              <a class="btn btn-secondary btn-block" href="https://wa.me/" target="_blank" rel="noreferrer">Request Plan</a>
+            </div>
+          </div>
+          <div class="pricing-card pricing-card-popular reveal reveal-delay-2">
+            <span class="pricing-badge">Most Popular</span>
+            <h3>Pro</h3>
+            <p class="muted">For growing apps</p>
+            <ul class="pricing-features">
+              <li><span class="check-icon">✓</span>100,000 requests/month</li>
+              <li><span class="check-icon">✓</span>Priority support</li>
+              <li><span class="check-icon">✓</span>Multiple API access</li>
+            </ul>
+            <div class="magnetic-wrap" style="margin-top:2rem;">
+              <a class="btn btn-primary btn-block" href="https://wa.me/" target="_blank" rel="noreferrer">Request Plan</a>
+            </div>
+          </div>
+          <div class="pricing-card reveal reveal-delay-3">
+            <h3>Business</h3>
+            <p class="muted">For teams at scale</p>
+            <ul class="pricing-features">
+              <li><span class="check-icon">✓</span>Custom limits</li>
+              <li><span class="check-icon">✓</span>Team support</li>
+              <li><span class="check-icon">✓</span>Custom integrations</li>
+              <li><span class="check-icon">✓</span>Dedicated onboarding</li>
+            </ul>
+            <div class="magnetic-wrap" style="margin-top:2rem;">
+              <a class="btn btn-secondary btn-block" href="https://wa.me/" target="_blank" rel="noreferrer">Request Plan</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FaqSection -->
+    <section class="section section-faq" id="faq" style="position:relative;">
+      <div class="container" style="max-width:48rem;">
+        <div class="section-intro reveal">
+          <h2 class="section-heading">Frequently Asked <span class="gradient-text">Questions</span></h2>
+          <p class="section-subheading">Everything you need to know about accessing and using Nexus API Store services.</p>
+        </div>
+        <div class="faq-list">
+          <div class="glass-card faq-item is-open" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="true">
+              <span>What is an API?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>An API (Application Programming Interface) is a structured way for applications to communicate with each other. Through Nexus API Store, you can access production-ready services — such as data processing, notifications, and business tools — by sending HTTP requests and receiving structured responses.</div>
+          </div>
+          <div class="glass-card faq-item" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="false">
+              <span>How do I request access?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>Browse the API catalog, review the documentation for the services you need, and submit an access request through our contact channels or the Request Access button on any API card. Our team will review your request and provision credentials based on your selected plan.</div>
+          </div>
+          <div class="glass-card faq-item" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="false">
+              <span>How are usage limits calculated?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>Usage limits are based on the number of API requests made within your billing period. Each successful request counts toward your monthly quota. Rate limits control how many requests you can make per second or minute to ensure fair access for all customers.</div>
+          </div>
+          <div class="glass-card faq-item" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="false">
+              <span>Can I use multiple APIs?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>Yes. Depending on your access plan, you can integrate multiple API services under a single account. Pro and Business plans include access to multiple APIs with unified usage tracking through your customer dashboard.</div>
+          </div>
+          <div class="glass-card faq-item" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="false">
+              <span>What happens when I reach my quota?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>When you approach or reach your monthly quota, you will receive notifications through your dashboard. Additional requests may be throttled or return a quota-exceeded response until the next billing period, or you can upgrade your plan for higher limits.</div>
+          </div>
+          <div class="glass-card faq-item" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="false">
+              <span>Can access be revoked?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>Access may be revoked if terms of service are violated, if abusive usage patterns are detected, or if payment obligations are not met. We follow a clear process with notification before any access restriction, except in cases of severe abuse.</div>
+          </div>
+          <div class="glass-card faq-item" data-faq-item>
+            <button class="faq-toggle" data-faq-toggle type="button" aria-expanded="false">
+              <span>Do you offer custom plans?</span>
+              <span class="faq-chevron">⌄</span>
+            </button>
+            <div class="faq-panel" data-faq-panel>Yes. The Business plan supports custom request limits, dedicated onboarding, and tailored integrations. Contact our team to discuss requirements for enterprise-scale deployments or specialized API access needs.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FinalCta -->
+    <section class="section">
+      <div class="container">
+        <div class="final-cta reveal">
+          <div class="final-cta-inner">
+            <h2>Your Next Integration <span class="gradient-text">Starts Here</span></h2>
+            <p>Explore the API catalog and find the services your next application needs.</p>
+            <div class="final-cta-actions">
+              <div class="magnetic-wrap">
+                <a class="btn btn-primary btn-icon" href="#featured-apis">Explore API Marketplace <span aria-hidden="true">→</span></a>
+              </div>
+              <div class="magnetic-wrap">
+                <a class="btn btn-secondary btn-icon" href="https://wa.me/" target="_blank" rel="noreferrer"><span aria-hidden="true">💬</span> Talk to Our Team</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="container footer-grid">
-      <div><strong>Nexus API Store</strong><p class="muted">Premium API marketplace</p></div>
-      <div><h4>Platform</h4><a href="/api-keys.html">API Keys</a><a href="/dashboard.html">Dashboard</a></div>
-      <div><h4>Company</h4><a href="/about-us.html">About Us</a></div>
-      <div><h4>Admin</h4><a href="/nexus-admin/login.php">Admin Panel</a></div>
-    </div>
-  </footer>
+  <footer class="footer" id="site-footer"></footer>
 
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/auth.js"></script>
   <script src="/assets/js/navbar.js"></script>
+  <script src="/assets/js/footer.js"></script>
   <script src="/assets/js/marketplace.js"></script>
+  <script src="/assets/js/effects.js"></script>
+  <script src="/assets/js/hero-terminal.js"></script>
+  <script src="/assets/js/faq.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => renderMarketplace('featured-apis-list'));
-    document.addEventListener('nexus-auth-changed', () => renderMarketplace('featured-apis-list'));
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMarketplace('featured-apis-list', {
+        title: 'Featured API Services',
+        description: 'Production-ready services with clear documentation, authentication requirements, and coin-based access plans.'
+      });
+    });
+    document.addEventListener('nexus-auth-changed', () => {
+      renderMarketplace('featured-apis-list', {
+        title: 'Featured API Services',
+        description: 'Production-ready services with clear documentation, authentication requirements, and coin-based access plans.'
+      });
+    });
   </script>
 </body>
 </html>

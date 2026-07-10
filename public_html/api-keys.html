@@ -8,50 +8,198 @@
 </head>
 <body>
   <header class="navbar" id="navbar"></header>
+
   <main>
-    <section class="page-header">
-      <div class="container">
+    <section class="page-header-banner">
+      <div class="mesh-gradient" aria-hidden="true"></div>
+      <div class="bg-grid" aria-hidden="true"></div>
+      <div class="container reveal">
         <span class="badge">Marketplace Access</span>
         <h1>Buy API Keys with <span class="gradient-text">Coins</span></h1>
-        <p class="muted">Recharge your wallet, unlock keys, and manage purchases from your dashboard.</p>
+        <p>Recharge your wallet, unlock API keys instantly, and manage purchased access links from your dashboard.</p>
       </div>
     </section>
-    <section class="section" style="padding-top:0;">
+
+    <section class="section section-glow" style="padding-top:0;">
       <div class="container">
         <div id="marketplace-list"></div>
       </div>
     </section>
-    <section class="section">
-      <div class="container grid-2">
-        <div class="glass-card card">
-          <h2>How to Get Your API Key</h2>
-          <ol class="muted">
-            <li>Create an account and verify your email</li>
-            <li>Recharge coins from your dashboard</li>
-            <li>Buy the API listing you need</li>
-            <li>Copy your key and integrate immediately</li>
-          </ol>
-        </div>
-        <div class="glass-card card">
-          <h2>Security Best Practices</h2>
-          <ul class="muted">
-            <li>Store keys in environment variables</li>
-            <li>Never expose keys in frontend code</li>
-            <li>Rotate keys regularly</li>
-            <li>Make API calls from your server</li>
+
+    <section class="page-header-banner" style="padding:4rem 0 3rem;">
+      <div class="mesh-gradient" aria-hidden="true"></div>
+      <div class="bg-grid" aria-hidden="true"></div>
+      <div class="container reveal">
+        <span class="badge">Credential Management</span>
+        <h1>Secure <span class="gradient-text">API Keys</span></h1>
+        <p>Request, manage, and protect your API credentials through a controlled access workflow designed for production applications.</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container two-col">
+        <div class="reveal">
+          <h2 class="section-heading" style="font-size:1.75rem;">Your Gateway to Every Service</h2>
+          <p class="muted">Every API on Nexus API Store uses key-based authentication. Your unique key identifies your account, enforces usage limits, and enables request monitoring — all through a single secure credential per access plan.</p>
+          <ul class="feature-list">
+            <li><span class="feature-check">✓</span>Per-service API key provisioning</li>
+            <li><span class="feature-check">✓</span>Usage quota tied to your plan</li>
+            <li><span class="feature-check">✓</span>Per-customer rate limiting</li>
+            <li><span class="feature-check">✓</span>Dashboard visibility into key status</li>
+            <li><span class="feature-check">✓</span>Key rotation support</li>
+            <li><span class="feature-check">✓</span>Abuse monitoring on all keys</li>
           </ul>
+        </div>
+        <div class="glass-card key-dashboard reveal reveal-delay-2">
+          <div class="key-dashboard-header">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <span style="color:var(--cyan);">🔑</span>
+              <strong>API Key Dashboard</strong>
+            </div>
+            <span class="key-status">Active</span>
+          </div>
+          <div class="card" style="padding-top:0;">
+            <label class="muted" style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;">API Key</label>
+            <div class="key-field">nxk_live_****************</div>
+            <div class="key-metrics">
+              <div class="key-metric">
+                <p class="muted" style="font-size:0.75rem;margin:0;">Requests Used</p>
+                <p style="margin:0.25rem 0 0;font-size:1.15rem;font-weight:600;">4,218</p>
+                <p class="muted" style="font-size:0.75rem;margin:0;">of 10,000</p>
+              </div>
+              <div class="key-metric">
+                <p class="muted" style="font-size:0.75rem;margin:0;">Rate Limit</p>
+                <p style="margin:0.25rem 0 0;font-size:1.15rem;font-weight:600;">60/min</p>
+                <p class="muted" style="font-size:0.75rem;margin:0;">per key</p>
+              </div>
+            </div>
+            <div class="key-warning">
+              <span>⚠</span>
+              <span>Keys are shown once at creation. Store them securely immediately.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-band-muted">
+      <div class="container">
+        <div class="section-intro reveal">
+          <h2 class="section-heading">How to Get Your <span class="gradient-text">API Key</span></h2>
+          <p class="section-subheading">A straightforward process from request to production-ready integration.</p>
+        </div>
+        <div class="grid-3">
+          <div class="glass-card glass-card-hover card reveal reveal-delay-1">
+            <span class="timeline-number">01</span>
+            <h3 style="margin-top:0.75rem;">Request Access</h3>
+            <p class="muted">Choose the APIs you need and submit an access request with your project details and expected usage.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-2">
+            <span class="timeline-number">02</span>
+            <h3 style="margin-top:0.75rem;">Review &amp; Approval</h3>
+            <p class="muted">Our team reviews your request, assigns the appropriate plan, and provisions credentials for approved services.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-3">
+            <span class="timeline-number">03</span>
+            <h3 style="margin-top:0.75rem;">Receive Your Key</h3>
+            <p class="muted">Access credentials are delivered securely through your customer dashboard — never shared over unsecured channels.</p>
+          </div>
+          <div class="glass-card glass-card-hover card reveal reveal-delay-4">
+            <span class="timeline-number">04</span>
+            <h3 style="margin-top:0.75rem;">Integrate &amp; Monitor</h3>
+            <p class="muted">Use your API key in request headers, track usage in real time, and rotate keys when needed.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-intro reveal">
+          <h2 class="section-heading">Key Security <span class="gradient-text">Best Practices</span></h2>
+          <p class="section-subheading">Protect your credentials and maintain responsible API usage at every stage of development.</p>
+        </div>
+        <div class="grid-2">
+          <div class="glass-card glass-card-hover value-card reveal reveal-delay-1">
+            <div class="feature-icon" style="margin:0;">🔒</div>
+            <div>
+              <h3>Store Keys Securely</h3>
+              <p class="muted">Keep API keys in environment variables or a secrets manager — never commit them to source control.</p>
+            </div>
+          </div>
+          <div class="glass-card glass-card-hover value-card reveal reveal-delay-2">
+            <div class="feature-icon" style="margin:0;">👁</div>
+            <div>
+              <h3>Never Expose Publicly</h3>
+              <p class="muted">Do not embed keys in client-side code, public repositories, or shared documents.</p>
+            </div>
+          </div>
+          <div class="glass-card glass-card-hover value-card reveal reveal-delay-3">
+            <div class="feature-icon" style="margin:0;">🔄</div>
+            <div>
+              <h3>Rotate Regularly</h3>
+              <p class="muted">Replace keys periodically and immediately after any suspected exposure or team member departure.</p>
+            </div>
+          </div>
+          <div class="glass-card glass-card-hover value-card reveal reveal-delay-4">
+            <div class="feature-icon" style="margin:0;">🛡</div>
+            <div>
+              <h3>Use Server-Side Calls</h3>
+              <p class="muted">Make API requests from your backend so credentials remain protected from end users.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card card reveal" style="margin-top:3rem;">
+          <h3 style="font-size:0.8rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Authentication Header Example</h3>
+          <pre class="code-block"><code><span style="color:#64748b;">POST</span> <span style="color:#22d3ee;">/v1/tools/process</span>
+<span style="color:#c084fc;">Authorization:</span> <span style="color:#cbd5e1;">Bearer YOUR_API_KEY</span>
+<span style="color:#c084fc;">Content-Type:</span> <span style="color:#cbd5e1;">application/json</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <div class="final-cta reveal">
+          <div class="final-cta-inner">
+            <h2 style="font-size:clamp(1.5rem,3vw,2rem);">Ready to Request Your API Key?</h2>
+            <p>Contact our team to get started with the right access plan for your project.</p>
+            <div class="final-cta-actions">
+              <div class="magnetic-wrap">
+                <a class="btn btn-primary btn-icon" href="https://wa.me/" target="_blank" rel="noreferrer">Request API Access <span aria-hidden="true">→</span></a>
+              </div>
+              <div class="magnetic-wrap">
+                <a class="btn btn-secondary" href="/index.html">Explore APIs</a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   </main>
-  <footer class="footer"><div class="container muted">© 2026 Nexus API Store</div></footer>
+
+  <footer class="footer" id="site-footer"></footer>
+
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/auth.js"></script>
   <script src="/assets/js/navbar.js"></script>
+  <script src="/assets/js/footer.js"></script>
   <script src="/assets/js/marketplace.js"></script>
+  <script src="/assets/js/effects.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => renderMarketplace('marketplace-list'));
-    document.addEventListener('nexus-auth-changed', () => renderMarketplace('marketplace-list'));
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMarketplace('marketplace-list', {
+        title: 'Coin Powered API Marketplace',
+        description: 'Choose a service, recharge your wallet, and spend coins to unlock production-ready API keys.'
+      });
+    });
+    document.addEventListener('nexus-auth-changed', () => {
+      renderMarketplace('marketplace-list', {
+        title: 'Coin Powered API Marketplace',
+        description: 'Choose a service, recharge your wallet, and spend coins to unlock production-ready API keys.'
+      });
+    });
   </script>
 </body>
 </html>

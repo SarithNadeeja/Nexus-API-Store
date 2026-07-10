@@ -10,19 +10,27 @@
   <header class="navbar" id="navbar"></header>
   <main class="section">
     <div class="container">
-      <div class="page-header" style="padding-top:6rem;text-align:left;">
-        <span class="badge">Customer Dashboard</span>
-        <h1>Your <span class="gradient-text">Coin Wallet</span></h1>
-        <p class="muted">Recharge coins, track purchases, and access your API keys.</p>
+      <div class="page-header-banner" style="padding:6rem 0 2rem;text-align:left;">
+        <div class="mesh-gradient" aria-hidden="true"></div>
+        <div class="bg-grid" aria-hidden="true"></div>
+        <div class="container" style="max-width:1280px;text-align:left;position:relative;z-index:1;">
+          <span class="badge">Customer Dashboard</span>
+          <h1>Your <span class="gradient-text">Coin Wallet</span></h1>
+          <p>Recharge coins, track purchases, and access your API keys.</p>
+        </div>
       </div>
 
       <div id="dashboard-content" class="muted">Loading dashboard...</div>
     </div>
   </main>
 
+  <footer class="footer" id="site-footer"></footer>
+
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/auth.js"></script>
   <script src="/assets/js/navbar.js"></script>
+  <script src="/assets/js/footer.js"></script>
+  <script src="/assets/js/effects.js"></script>
   <script>
     async function renderDashboard() {
       const container = document.getElementById('dashboard-content');

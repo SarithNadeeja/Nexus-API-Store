@@ -24,10 +24,10 @@ final class UserService
         }
 
         $hash = password_hash($password, PASSWORD_BCRYPT);
-        $insert = $pdo->prepare('INSERT INTO app_users (full_name, email, password_hash, coin_balance, email_verified) VALUES (?, ?, ?, 0, 0)');
+        $insert = $pdo->prepare('INSERT INTO app_users (full_name, email, password_hash, coin_balance, email_verified) VALUES (?, ?, ?, 0, FALSE)');
         $insert->execute([$fullName, $email, $hash]);
 
-        $userId = (int) $pdo->lastInsertId();
+        $userId = Database::lastInsertId($pdo, 'app_users');
         Auth::clearAppUser();
 
         $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');
@@ -59,7 +59,7 @@ final class UserService
         if (!$user || !password_verify($password, $user['password_hash'])) {
             throw new InvalidArgumentException('Invalid email or password.');
         }
-        if (!(int) $user['email_verified']) {
+        if (!db_bool($user['email_verified'])) {
             throw new InvalidArgumentException('Please verify your email address before signing in. Check your inbox for the verification link.');
         }
 
@@ -83,7 +83,7 @@ final class UserService
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
-        if (!$user || !(int) $user['email_verified']) {
+        if (!$user || !db_bool($user['email_verified'])) {
             Auth::clearAppUser();
             return self::guestSession();
         }
@@ -196,7 +196,7 @@ final class UserService
             throw $e;
         }
 
-        $purchaseId = (int) $pdo->lastInsertId();
+        $purchaseId = Database::lastInsertId($pdo, 'api_purchases');
         return [
             'purchaseId' => $purchaseId,
             'apiName' => $api['name'],
@@ -215,8 +215,8 @@ final class UserService
         $user = $stmt->fetch();
 
         if ($user) {
-            if (!(int) $user['email_verified']) {
-                $pdo->prepare('UPDATE app_users SET email_verified = 1 WHERE id = ?')->execute([$user['id']]);
+            if (!db_bool($user['email_verified'])) {
+                $pdo->prepare('UPDATE app_users SET email_verified = TRUE WHERE id = ?')->execute([$user['id']]);
             }
             if ($fullName !== '' && $fullName !== $user['full_name']) {
                 $pdo->prepare('UPDATE app_users SET full_name = ? WHERE id = ?')->execute([$fullName, $user['id']]);
@@ -226,9 +226,9 @@ final class UserService
         }
 
         $hash = password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
-        $pdo->prepare('INSERT INTO app_users (full_name, email, password_hash, coin_balance, email_verified) VALUES (?, ?, ?, 100, 1)')
+        $pdo->prepare('INSERT INTO app_users (full_name, email, password_hash, coin_balance, email_verified) VALUES (?, ?, ?, 100, TRUE)')
             ->execute([$fullName ?: 'Google User', $email, $hash]);
-        $userId = (int) $pdo->lastInsertId();
+        $userId = Database::lastInsertId($pdo, 'app_users');
         self::addTransaction($pdo, $userId, 'WELCOME_BONUS', 100, 'Welcome bonus after Google sign-in');
 
         $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');
@@ -275,7 +275,7 @@ final class UserService
 
         return [
             'authenticated' => true,
-            'emailVerified' => (bool) $user['email_verified'],
+            'emailVerified' => db_bool($user['email_verified']),
             'fullName' => $user['full_name'],
             'email' => $user['email'],
             'coinBalance' => (int) $user['coin_balance'],

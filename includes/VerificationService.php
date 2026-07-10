@@ -34,7 +34,7 @@ final class VerificationService
 
     public static function resend(PDO $pdo, array $config, array $user): void
     {
-        if ((int) $user['email_verified']) {
+        if (db_bool($user['email_verified'])) {
             throw new InvalidArgumentException('This email address is already verified.');
         }
         if (!self::createAndSend($pdo, $config, $user)) {
@@ -59,7 +59,7 @@ final class VerificationService
 
         $pdo->beginTransaction();
         try {
-            $pdo->prepare('UPDATE app_users SET email_verified = 1, coin_balance = coin_balance + 100 WHERE id = ?')
+            $pdo->prepare('UPDATE app_users SET email_verified = TRUE, coin_balance = coin_balance + 100 WHERE id = ?')
                 ->execute([$row['user_id']]);
             $pdo->prepare('UPDATE email_verification_tokens SET verified_at = NOW() WHERE id = ?')
                 ->execute([$row['id']]);

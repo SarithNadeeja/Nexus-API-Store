@@ -73,3 +73,8 @@ function uuid_v4(): string
     $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
+
+function db_bool(mixed $value): bool
+{
+    return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
+}

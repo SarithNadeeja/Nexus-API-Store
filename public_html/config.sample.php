@@ -4,11 +4,12 @@ return [
     'base_url' => 'https://nexusapistore.com',
     'timezone' => 'UTC',
     'db' => [
+        'driver' => 'pgsql',
         'host' => 'localhost',
-        'name' => 'your_database_name',
-        'user' => 'your_database_user',
+        'port' => 5432,
+        'name' => 'nexus',
+        'user' => 'nexus',
         'pass' => 'your_database_password',
-        'charset' => 'utf8mb4',
     ],
     'mail' => [
         'from_email' => 'nexusapistore@gmail.com',

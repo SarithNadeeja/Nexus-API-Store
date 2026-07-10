@@ -203,7 +203,7 @@ $username = Auth::adminUsername();
                             <td><?= h($user['full_name']) ?></td>
                             <td><?= h($user['email']) ?></td>
                             <td><?= (int) $user['coin_balance'] ?></td>
-                            <td><?= (int) $user['email_verified'] ? 'Yes' : 'No' ?></td>
+                            <td><?= db_bool($user['email_verified']) ? 'Yes' : 'No' ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Copy this file to config.php and fill in your cPanel values.
+ * Copy this file to config.php and fill in your values.
  */
 return [
     'app_name' => 'Nexus API Store',
@@ -8,11 +8,12 @@ return [
     'timezone' => 'UTC',
 
     'db' => [
+        'driver' => 'pgsql',
         'host' => 'localhost',
-        'name' => 'your_database_name',
-        'user' => 'your_database_user',
+        'port' => 5432,
+        'name' => 'nexus',
+        'user' => 'nexus',
         'pass' => 'your_database_password',
-        'charset' => 'utf8mb4',
     ],
 
     'mail' => [

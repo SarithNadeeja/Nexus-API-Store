@@ -2,53 +2,91 @@ async function renderMarketplace(containerId, options = {}) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  container.innerHTML = '<p class="muted">Loading APIs...</p>';
+  const title = options.title || 'Featured API Services';
+  const description = options.description || 'Production-ready services with clear documentation, authentication requirements, and coin-based access plans.';
+  const showHeader = options.showHeader !== false;
+
+  if (showHeader) {
+    const parts = title.split(' ');
+    const accent = parts.length > 2 ? parts.slice(-2).join(' ') : '';
+    const plain = parts.length > 2 ? parts.slice(0, -2).join(' ') : title;
+    container.innerHTML = `
+      <div class="section-intro reveal">
+        <h2 class="section-heading">${plain}${accent ? ` <span class="gradient-text">${accent}</span>` : ''}</h2>
+        <p class="section-subheading">${description}</p>
+      </div>
+      <div id="${containerId}-grid" class="marketplace-grid"><p class="muted center-text">Loading API marketplace...</p></div>
+      <div id="${containerId}-footer" class="marketplace-footer muted center-text"></div>`;
+  } else {
+    container.innerHTML = `
+      <div id="${containerId}-grid" class="marketplace-grid"><p class="muted center-text">Loading API marketplace...</p></div>
+      <div id="${containerId}-footer" class="marketplace-footer muted center-text"></div>`;
+  }
+
+  const grid = document.getElementById(`${containerId}-grid`);
+  const footer = document.getElementById(`${containerId}-footer`);
+
   try {
     const apis = await NexusApi.getApis();
     if (!apis.length) {
-      container.innerHTML = '<p class="muted">No APIs listed yet. Check back soon.</p>';
+      grid.innerHTML = '<p class="muted center-text">No APIs listed yet. Check back soon.</p>';
       return;
     }
 
     const user = NexusAuth.user;
-    container.innerHTML = `<div class="grid-3">${apis.map(api => `
-      <article class="glass-card card api-card">
-        <div class="api-meta">
-          <span class="badge">${escapeHtml(api.category)}</span>
-          <span class="tag">${escapeHtml(api.status)}</span>
-          <span class="tag">${api.priceCoins} coins</span>
+    grid.innerHTML = apis.map((api, index) => `
+      <article class="glass-card glass-card-hover marketplace-card reveal reveal-delay-${(index % 6) + 1}">
+        <div class="api-badges">
+          <span class="pill pill-cyan">${escapeHtml(api.category)}</span>
+          <span class="pill pill-emerald">${escapeHtml(api.status)}</span>
         </div>
-        <h3>${escapeHtml(api.name)}</h3>
-        <p class="muted">${escapeHtml(api.description || '')}</p>
-        <div class="code">${escapeHtml(api.endpointUrl)}</div>
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
-          <a class="btn btn-secondary" href="${escapeHtml(api.endpointUrl)}" target="_blank" rel="noreferrer">View Docs</a>
+        <h3 class="card-title">${escapeHtml(api.name)}</h3>
+        <p class="card-copy">${escapeHtml(api.description || '')}</p>
+        <div class="tag-row">
+          <span class="mini-tag">Auth: API Key</span>
+          <span class="mini-tag">Format: JSON</span>
+          <span class="mini-tag mini-tag-amber">${api.priceCoins} coins</span>
+        </div>
+        <div class="endpoint-box">
+          <div class="endpoint-title">◎ Buy with your account balance</div>
+          <div class="endpoint-url">Endpoint: <span>${escapeHtml(api.endpointUrl)}</span></div>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-secondary btn-sm" href="${escapeHtml(api.endpointUrl)}" target="_blank" rel="noreferrer">View Docs</a>
           ${api.purchased
-            ? '<a class="btn btn-primary" href="/dashboard.html">View Purchased Key</a>'
-            : `<button class="btn btn-primary buy-api-btn" data-api-id="${api.id}" type="button">Buy with Coins</button>`}
+            ? '<a class="btn btn-primary btn-sm" href="/dashboard.html">View Purchased Key</a>'
+            : `<button class="btn btn-primary btn-sm buy-api-btn" data-api-id="${api.id}" type="button">Buy with Coins</button>`}
         </div>
       </article>
-    `).join('')}</div>
-    <p class="muted" style="margin-top:1rem;">${user ? `Signed in as ${escapeHtml(user.fullName)} • ${user.coinBalance} coins` : 'Sign in to recharge your wallet and buy API keys.'}</p>`;
+    `).join('');
 
-    container.querySelectorAll('.buy-api-btn').forEach(btn => {
+    footer.innerHTML = user
+      ? `Signed in as <strong>${escapeHtml(user.fullName)}</strong> with <span class="text-cyan">${user.coinBalance} coins</span>.`
+      : 'Sign in to recharge coins and instantly purchase API keys.';
+
+    grid.querySelectorAll('.buy-api-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!NexusAuth.user) {
           location.href = '/login.html';
           return;
         }
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
         try {
           await NexusApi.purchase(Number(btn.dataset.apiId));
           await NexusAuth.refresh();
           await renderMarketplace(containerId, options);
-          alert('API purchased successfully!');
         } catch (err) {
           alert(err.message);
+          btn.disabled = false;
+          btn.textContent = 'Buy with Coins';
         }
       });
     });
+
+    if (window.NexusEffects) window.NexusEffects.initScrollReveal();
   } catch (err) {
-    container.innerHTML = `<p class="alert error">${escapeHtml(err.message)}</p>`;
+    grid.innerHTML = `<div class="alert error center-text">${escapeHtml(err.message)}</div>`;
   }
 }
 

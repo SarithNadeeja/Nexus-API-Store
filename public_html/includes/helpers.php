@@ -124,6 +124,24 @@ function category_visual(int $index): array
     ];
 }
 
+function homepage_category_visual(int $index): array
+{
+    $styles = [
+        ['icon' => '🤖', 'iconClass' => 'category-icon-cyan'],
+        ['icon' => '🗄', 'iconClass' => 'category-icon-blue'],
+        ['icon' => '🎬', 'iconClass' => 'category-icon-purple'],
+        ['icon' => '🏢', 'iconClass' => 'category-icon-emerald'],
+        ['icon' => '📈', 'iconClass' => 'category-icon-amber'],
+        ['icon' => '💬', 'iconClass' => 'category-icon-rose'],
+        ['icon' => '⌨', 'iconClass' => 'category-icon-sky'],
+        ['icon' => '🛡', 'iconClass' => 'category-icon-violet'],
+        ['icon' => '{ }', 'iconClass' => 'category-icon-cyan'],
+        ['icon' => '🛒', 'iconClass' => 'category-icon-blue'],
+    ];
+
+    return $styles[$index % count($styles)];
+}
+
 function user_avatar_tone(int $index): string
 {
     $tones = ['tone-blue', 'tone-purple', 'tone-green', 'tone-amber', 'tone-rose'];

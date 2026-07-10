@@ -125,71 +125,8 @@
           <h2 class="section-heading">Everything You Need to <span class="gradient-text">Build Faster</span></h2>
           <p class="section-subheading">Explore API services organized around common developer and business workflows.</p>
         </div>
-        <div class="category-grid">
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-1">
-            <div class="category-icon category-icon-cyan">🤖</div>
-            <div>
-              <h3>AI &amp; Automation</h3>
-              <p class="muted">Intelligent text processing, workflow automation, and smart task APIs.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">12 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-2">
-            <div class="category-icon category-icon-blue">🗄</div>
-            <div>
-              <h3>Data Processing</h3>
-              <p class="muted">Transform, validate, clean, and enrich structured and unstructured data.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">18 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-3">
-            <div class="category-icon category-icon-purple">🎬</div>
-            <div>
-              <h3>Media Utilities</h3>
-              <p class="muted">Metadata extraction, format conversion, and media asset management tools.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">9 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-4">
-            <div class="category-icon category-icon-emerald">🏢</div>
-            <div>
-              <h3>Business Tools</h3>
-              <p class="muted">Company lookups, document processing, and operational workflow APIs.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">14 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-5">
-            <div class="category-icon category-icon-amber">📈</div>
-            <div>
-              <h3>Finance &amp; Market Data</h3>
-              <p class="muted">Currency rates, market indicators, and financial reference data services.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">7 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-6">
-            <div class="category-icon category-icon-rose">💬</div>
-            <div>
-              <h3>Communication APIs</h3>
-              <p class="muted">Notifications, messaging integrations, and multi-channel delivery services.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">11 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-1">
-            <div class="category-icon category-icon-sky">⌨</div>
-            <div>
-              <h3>Developer Utilities</h3>
-              <p class="muted">Formatting, encoding, validation, and productivity tools for developers.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">16 APIs</span><span class="category-arrow">→</span></div>
-          </a>
-          <a href="#featured-apis" class="glass-card glass-card-hover category-card reveal reveal-delay-2">
-            <div class="category-icon category-icon-violet">🛡</div>
-            <div>
-              <h3>Verification Tools</h3>
-              <p class="muted">Identity checks, data validation, and compliance-ready verification services.</p>
-            </div>
-            <div class="category-footer"><span class="category-count">8 APIs</span><span class="category-arrow">→</span></div>
-          </a>
+        <div class="category-grid" id="home-categories-grid">
+          <p class="muted center-text">Loading categories...</p>
         </div>
       </div>
     </section>
@@ -484,11 +421,13 @@
   <script src="/assets/js/navbar.js"></script>
   <script src="/assets/js/footer.js"></script>
   <script src="/assets/js/marketplace.js"></script>
+  <script src="/assets/js/home-categories.js"></script>
   <script src="/assets/js/effects.js"></script>
   <script src="/assets/js/hero-terminal.js"></script>
   <script src="/assets/js/faq.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      renderHomeCategories();
       renderMarketplace('featured-apis-list', {
         title: 'Featured API Services',
         description: 'Production-ready services with clear documentation, authentication requirements, and coin-based access plans.'

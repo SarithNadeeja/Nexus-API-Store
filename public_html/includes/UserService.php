@@ -146,6 +146,34 @@ final class UserService
         return $result;
     }
 
+    public static function getPublicCategories(PDO $pdo): array
+    {
+        $stmt = $pdo->query(
+            'SELECT c.id, c.name, c.description, COUNT(a.id)::int AS api_count
+             FROM categories c
+             LEFT JOIN api_listings a ON a.category_id = c.id
+             GROUP BY c.id, c.name, c.description
+             ORDER BY c.name ASC'
+        );
+
+        $result = [];
+        $index = 0;
+        foreach ($stmt->fetchAll() as $row) {
+            $visual = homepage_category_visual($index);
+            $result[] = [
+                'id' => (int) $row['id'],
+                'name' => $row['name'],
+                'description' => (string) ($row['description'] ?? ''),
+                'apiCount' => (int) $row['api_count'],
+                'icon' => $visual['icon'],
+                'iconClass' => $visual['iconClass'],
+            ];
+            $index++;
+        }
+
+        return $result;
+    }
+
     public static function recharge(PDO $pdo, array $user, int $coins, ?int $packageId = null, bool $custom = false): array
     {
         if ($custom) {

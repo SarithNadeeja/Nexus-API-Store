@@ -23,6 +23,8 @@ try {
         json_response(UserService::getPublicApis($pdo));
     } elseif ($path === '/api/public/coin-packages' && $method === 'GET') {
         json_response(CoinPackageService::getPublicCatalog($pdo));
+    } elseif ($path === '/api/public/categories' && $method === 'GET') {
+        json_response(UserService::getPublicCategories($pdo));
     } elseif ($path === '/api/auth/register' && $method === 'POST') {
         $body = read_json_body();
         json_response(UserService::register($pdo, $config, $body));

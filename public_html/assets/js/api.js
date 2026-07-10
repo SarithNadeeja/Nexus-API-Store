@@ -20,6 +20,7 @@ async function apiRequest(path, options = {}) {
 
 window.NexusApi = {
   getApis: () => apiRequest('/public/apis'),
+  getCategories: () => apiRequest('/public/categories'),
   getCoinPackages: () => apiRequest('/public/coin-packages'),
   register: (payload) => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   resendVerification: (email) => apiRequest('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),

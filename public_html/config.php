@@ -1,7 +1,7 @@
 <?php
 return [
     'app_name' => 'Nexus API Store',
-    'base_url' => 'https://nexusapistore.com',
+    'base_url' => 'http://nexusapistore.com',
     'timezone' => 'UTC',
     'db' => [
         'driver' => 'pgsql',
@@ -17,7 +17,7 @@ return [
         'smtp_host' => 'smtp.gmail.com',
         'smtp_port' => 587,
         'smtp_user' => 'nexusapistore@gmail.com',
-        'smtp_pass' => 'your-gmail-app-password',
+        'smtp_pass' => 'cqxwukteqruqvhmb',
     ],
     'google' => [
         'client_id' => 'your-google-client-id.apps.googleusercontent.com',

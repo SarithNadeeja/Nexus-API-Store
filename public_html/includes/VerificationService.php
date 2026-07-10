@@ -38,7 +38,10 @@ final class VerificationService
             throw new InvalidArgumentException('This email address is already verified.');
         }
         if (!self::createAndSend($pdo, $config, $user)) {
-            throw new RuntimeException('Unable to send verification email. Please confirm Gmail SMTP settings and try again.');
+            $detail = Mailer::getLastError();
+            throw new RuntimeException(
+                'Unable to send verification email. ' . ($detail ?: 'Please confirm Gmail SMTP settings and try again.')
+            );
         }
     }
 

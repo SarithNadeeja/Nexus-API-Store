@@ -34,7 +34,7 @@ function renderFooter() {
         <div class="footer-brand">
           <a href="/index.html" class="nav-brand">
             <span class="nav-logo">⚡</span>
-            <span>Nexus API Store</span>
+            <span>Nexus API Store by Sasinda</span>
           </a>
           <p class="footer-copy">A premium API marketplace where users recharge coins and unlock secure API access.</p>
         </div>
@@ -48,7 +48,7 @@ function renderFooter() {
         `).join('')}
       </div>
       <div class="footer-bottom">
-        <p>&copy; 2026 Nexus API Store by Sasinda. All rights reserved.</p>
+        <p>Nexus API Store by Sasinda</p>
         <div class="footer-bottom-links">
           <a href="#">Terms</a>
           <a href="#">Privacy</a>
@@ -56,7 +56,7 @@ function renderFooter() {
         </div>
       </div>
       <p class="footer-powered">
-        Website Powered by <a href="https://infersioai.com" target="_blank" rel="noopener noreferrer">infersioai.com</a>
+        website powered by <a href="https://infersioai.com" target="_blank" rel="noopener noreferrer">infersioai.com</a>
       </p>
     </div>`;
 }

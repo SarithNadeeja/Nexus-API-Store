@@ -17,11 +17,22 @@ final class CoinPackageService
             return;
         }
 
+        self::ensurePackagesSchema($pdo);
+        self::ensureSettingsSchemaInternal($pdo);
+    }
+
+    public static function tablesReady(PDO $pdo): bool
+    {
+        return self::tableExists($pdo, 'coin_packages') && self::tableExists($pdo, 'coin_settings');
+    }
+
+    private static function tableExists(PDO $pdo, string $table): bool
+    {
         try {
-            self::ensurePackagesSchema($pdo);
-            self::ensureSettingsSchemaInternal($pdo);
-        } catch (Throwable $e) {
-            error_log('CoinPackageService::ensureSchema failed: ' . $e->getMessage());
+            $pdo->query('SELECT 1 FROM ' . $table . ' LIMIT 1');
+            return true;
+        } catch (PDOException) {
+            return false;
         }
     }
 
@@ -109,16 +120,27 @@ final class CoinPackageService
 
     public static function getCustomSettings(PDO $pdo): array
     {
-        self::ensureSettingsSchema($pdo);
+        $defaults = [
+            'custom_recharge_enabled' => true,
+            'custom_coin_price_usd' => 0.01,
+            'custom_coin_min' => 50,
+            'custom_coin_max' => 100000,
+            'whatsapp_number' => '',
+        ];
+
+        try {
+            self::ensureSettingsSchema($pdo);
+        } catch (Throwable) {
+            return $defaults;
+        }
+
+        if (!self::tableExists($pdo, 'coin_settings')) {
+            return $defaults;
+        }
+
         $row = $pdo->query('SELECT * FROM coin_settings WHERE id = 1')->fetch();
         if (!$row) {
-            return [
-                'custom_recharge_enabled' => true,
-                'custom_coin_price_usd' => 0.01,
-                'custom_coin_min' => 50,
-                'custom_coin_max' => 100000,
-                'whatsapp_number' => '',
-            ];
+            return $defaults;
         }
 
         return $row;
@@ -226,7 +248,16 @@ final class CoinPackageService
 
     public static function listActive(PDO $pdo): array
     {
-        self::ensureSchema($pdo);
+        try {
+            self::ensureSchema($pdo);
+        } catch (Throwable) {
+            return [];
+        }
+
+        if (!self::tableExists($pdo, 'coin_packages')) {
+            return [];
+        }
+
         $stmt = $pdo->query(
             'SELECT * FROM coin_packages WHERE is_active = TRUE ORDER BY sort_order ASC, coin_amount ASC'
         );
@@ -236,7 +267,16 @@ final class CoinPackageService
 
     public static function listAll(PDO $pdo): array
     {
-        self::ensureSchema($pdo);
+        try {
+            self::ensureSchema($pdo);
+        } catch (Throwable) {
+            return [];
+        }
+
+        if (!self::tableExists($pdo, 'coin_packages')) {
+            return [];
+        }
+
         $stmt = $pdo->query(
             'SELECT * FROM coin_packages ORDER BY sort_order ASC, coin_amount ASC'
         );

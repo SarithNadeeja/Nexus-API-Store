@@ -16,6 +16,7 @@ $config = require $configPath;
 require_once __DIR__ . '/includes/Database.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/AdminService.php';
+require_once __DIR__ . '/includes/CoinPackageService.php';
 
 function quotePgIdentifier(string $value): string
 {
@@ -139,9 +140,22 @@ $messages = [];
 $errors = [];
 $readable = false;
 $owners = [];
+$coinTablesReady = false;
 
 try {
     $pdo = freshPdo($config['db']);
+
+    try {
+        CoinPackageService::ensureSchema($pdo);
+        $coinTablesReady = CoinPackageService::tablesReady($pdo);
+        if ($coinTablesReady) {
+            $messages[] = 'Coin package tables are ready.';
+        } else {
+            $errors[] = 'Coin tables are still missing. Visit /migrate-coins.php once.';
+        }
+    } catch (Throwable $e) {
+        $errors[] = 'Coin schema migration failed: ' . $e->getMessage();
+    }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
@@ -240,6 +254,7 @@ header('Content-Type: text/html; charset=utf-8');
   <?php endforeach; ?>
 
   <p>API table readable: <strong class="<?= $readable ? 'ok' : 'bad' ?>"><?= $readable ? 'YES' : 'NO' ?></strong></p>
+  <p>Coin tables ready: <strong class="<?= $coinTablesReady ? 'ok' : 'bad' ?>"><?= $coinTablesReady ? 'YES' : 'NO' ?></strong></p>
 
   <h2>Table Owners</h2>
   <pre><?php
@@ -254,6 +269,9 @@ header('Content-Type: text/html; charset=utf-8');
 
   <?php if ($readable): ?>
     <p class="ok">Done. Test <a href="/api/public/apis">/api/public/apis</a>, then delete <code>fix-db-permissions.php</code>.</p>
+    <?php if (!$coinTablesReady): ?>
+      <p class="bad">Coin tables still missing. <a href="/migrate-coins.php">Run /migrate-coins.php</a></p>
+    <?php endif; ?>
   <?php else: ?>
     <div class="card">
       <h2>Fix with PostgreSQL admin (recommended)</h2>

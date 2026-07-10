@@ -42,3 +42,9 @@ try {
     echo json_encode(['message' => 'Database connection failed. Check config.php and database service.']);
     exit;
 }
+
+try {
+    CoinPackageService::ensureSchema($pdo);
+} catch (Throwable $e) {
+    error_log('Coin schema initialization failed: ' . $e->getMessage());
+}

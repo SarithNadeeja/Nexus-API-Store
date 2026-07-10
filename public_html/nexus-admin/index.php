@@ -5,9 +5,6 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 $section = $_GET['section'] ?? 'dashboard';
-if ($section === 'dashboard') {
-    require_once dirname(__DIR__) . '/includes/DashboardService.php';
-}
 
 AdminService::ensureDefaultAdmin($pdo);
 $admin = Auth::requireAdmin($pdo);
@@ -71,13 +68,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $counts = AdminService::counts($pdo);
-$dashboard = $section === 'dashboard' ? DashboardService::getData($pdo) : null;
+$dashboard = null;
+if ($section === 'dashboard') {
+    try {
+        require_once dirname(__DIR__) . '/includes/DashboardService.php';
+        $dashboard = DashboardService::getData($pdo);
+    } catch (Throwable $e) {
+        $error = $error ?: 'Dashboard failed to load: ' . $e->getMessage();
+    }
+}
 $categories = $pdo->query('SELECT * FROM categories ORDER BY name')->fetchAll();
 $apis = $pdo->query('SELECT a.*, c.name AS category_name FROM api_listings a JOIN categories c ON c.id = a.category_id ORDER BY a.id DESC')->fetchAll();
 $users = $pdo->query('SELECT * FROM app_users ORDER BY created_at DESC')->fetchAll();
-$coinPackages = CoinPackageService::listAll($pdo);
+$coinPackages = [];
 $coinSettings = CoinPackageService::getCustomSettings($pdo);
 $contactSettings = CoinPackageService::getContactSettings($pdo);
+$coinSchemaError = null;
+
+if (in_array($section, ['coin-packages', 'settings'], true)) {
+    try {
+        CoinPackageService::ensureSchema($pdo);
+        if (!CoinPackageService::tablesReady($pdo)) {
+            throw new RuntimeException('Coin tables are missing. Open /migrate-coins.php once to create them.');
+        }
+        $coinPackages = CoinPackageService::listAll($pdo);
+        $coinSettings = CoinPackageService::getCustomSettings($pdo);
+        $contactSettings = CoinPackageService::getContactSettings($pdo);
+    } catch (Throwable $e) {
+        $coinSchemaError = $e->getMessage();
+    }
+}
+
 $admins = $pdo->query('SELECT * FROM admin_users ORDER BY id ASC')->fetchAll();
 $username = Auth::adminUsername();
 ?>
@@ -155,6 +176,12 @@ $username = Auth::adminUsername();
         <?php endif; ?>
         <?php if ($success): ?><div class="alert success"><?= h($success) ?></div><?php endif; ?>
         <?php if ($error): ?><div class="alert error"><?= h($error) ?></div><?php endif; ?>
+        <?php if (!empty($coinSchemaError) && in_array($section, ['coin-packages', 'settings'], true)): ?>
+            <div class="alert error">
+                Coin wallet tables need setup: <?= h($coinSchemaError) ?>
+                <a href="/migrate-coins.php" target="_blank" rel="noreferrer">Run coin migration</a>
+            </div>
+        <?php endif; ?>
 
         <?php if ($section === 'dashboard' && $dashboard): ?>
         <section id="dashboard-root" class="dashboard-page section-page">

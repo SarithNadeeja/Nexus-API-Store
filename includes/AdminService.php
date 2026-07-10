@@ -1,0 +1,182 @@
+<?php
+
+declare(strict_types=1);
+
+final class AdminService
+{
+    public static function ensureDefaultAdmin(PDO $pdo): void
+    {
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
+        if ($count > 0) {
+            return;
+        }
+        $hash = password_hash('Admin@123', PASSWORD_BCRYPT);
+        $pdo->prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)')
+            ->execute(['admin', $hash]);
+    }
+
+    public static function login(PDO $pdo, string $username, string $password): ?array
+    {
+        $stmt = $pdo->prepare('SELECT * FROM admin_users WHERE username = ?');
+        $stmt->execute([trim($username)]);
+        $admin = $stmt->fetch();
+        if (!$admin || !password_verify($password, $admin['password_hash'])) {
+            return null;
+        }
+        Auth::setAdmin((int) $admin['id'], $admin['username']);
+        return $admin;
+    }
+
+    public static function counts(PDO $pdo): array
+    {
+        return [
+            'categories' => (int) $pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn(),
+            'apis' => (int) $pdo->query('SELECT COUNT(*) FROM api_listings')->fetchColumn(),
+            'users' => (int) $pdo->query('SELECT COUNT(*) FROM app_users')->fetchColumn(),
+            'admins' => (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn(),
+        ];
+    }
+
+    public static function saveCategory(PDO $pdo, array $data): void
+    {
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            throw new InvalidArgumentException('Category name is required.');
+        }
+        $description = trim($data['description'] ?? '');
+        $id = isset($data['id']) && $data['id'] !== '' ? (int) $data['id'] : null;
+
+        if ($id) {
+            $pdo->prepare('UPDATE categories SET name = ?, description = ? WHERE id = ?')
+                ->execute([$name, $description, $id]);
+            return;
+        }
+
+        $check = $pdo->prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)');
+        $check->execute([$name]);
+        if ($check->fetch()) {
+            throw new InvalidArgumentException('A category with this name already exists.');
+        }
+        $pdo->prepare('INSERT INTO categories (name, description) VALUES (?, ?)')
+            ->execute([$name, $description]);
+    }
+
+    public static function deleteCategory(PDO $pdo, int $id): void
+    {
+        $check = $pdo->prepare('SELECT COUNT(*) FROM api_listings WHERE category_id = ?');
+        $check->execute([$id]);
+        if ((int) $check->fetchColumn() > 0) {
+            throw new InvalidArgumentException('Cannot delete a category that still has API listings.');
+        }
+        $pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$id]);
+    }
+
+    public static function saveApi(PDO $pdo, array $data): void
+    {
+        $fields = ['name', 'endpoint_url', 'access_link', 'api_key_value', 'status', 'category_id', 'price_coins'];
+        foreach ($fields as $field) {
+            if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
+                throw new InvalidArgumentException(ucfirst(str_replace('_', ' ', $field)) . ' is required.');
+            }
+        }
+
+        $id = isset($data['id']) && $data['id'] !== '' ? (int) $data['id'] : null;
+        $payload = [
+            trim($data['name']),
+            trim($data['description'] ?? ''),
+            trim($data['endpoint_url']),
+            trim($data['access_link']),
+            trim($data['api_key_value']),
+            trim($data['status']),
+            (int) $data['price_coins'],
+            (int) $data['category_id'],
+        ];
+
+        if ($id) {
+            $payload[] = $id;
+            $pdo->prepare(
+                'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=? WHERE id=?'
+            )->execute($payload);
+            return;
+        }
+
+        $pdo->prepare(
+            'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute($payload);
+    }
+
+    public static function deleteApi(PDO $pdo, int $id): void
+    {
+        $pdo->prepare('DELETE FROM api_listings WHERE id = ?')->execute([$id]);
+    }
+
+    public static function createAdmin(PDO $pdo, string $username, string $password): void
+    {
+        if (strlen($password) < 8) {
+            throw new InvalidArgumentException('Password must be at least 8 characters.');
+        }
+        $check = $pdo->prepare('SELECT id FROM admin_users WHERE LOWER(username) = LOWER(?)');
+        $check->execute([trim($username)]);
+        if ($check->fetch()) {
+            throw new InvalidArgumentException('An admin with this username already exists.');
+        }
+        $pdo->prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)')
+            ->execute([trim($username), password_hash($password, PASSWORD_BCRYPT)]);
+    }
+
+    public static function updateAdminPassword(PDO $pdo, int $userId, string $password): void
+    {
+        if (strlen($password) < 8) {
+            throw new InvalidArgumentException('Password must be at least 8 characters.');
+        }
+        $pdo->prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?')
+            ->execute([password_hash($password, PASSWORD_BCRYPT), $userId]);
+    }
+
+    public static function deleteAdmin(PDO $pdo, int $id, string $currentUsername): void
+    {
+        $stmt = $pdo->prepare('SELECT username FROM admin_users WHERE id = ?');
+        $stmt->execute([$id]);
+        $admin = $stmt->fetch();
+        if (!$admin) {
+            throw new InvalidArgumentException('Admin user not found.');
+        }
+        if ($admin['username'] === $currentUsername) {
+            throw new InvalidArgumentException('You cannot delete the currently logged-in admin.');
+        }
+        if ((int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn() <= 1) {
+            throw new InvalidArgumentException('At least one admin account must remain.');
+        }
+        $pdo->prepare('DELETE FROM admin_users WHERE id = ?')->execute([$id]);
+    }
+
+    public static function adjustUserCoins(PDO $pdo, int $userId, string $operation, int $amount, string $note): void
+    {
+        if ($amount <= 0) {
+            throw new InvalidArgumentException('Coin amount must be greater than zero.');
+        }
+        $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        if (!$user) {
+            throw new InvalidArgumentException('User not found.');
+        }
+
+        $description = $note !== '' ? $note : 'Manual admin wallet adjustment';
+        if (strtoupper($operation) === 'REMOVE') {
+            if ((int) $user['coin_balance'] < $amount) {
+                throw new InvalidArgumentException('Cannot remove more coins than the user currently has.');
+            }
+            $pdo->prepare('UPDATE app_users SET coin_balance = coin_balance - ? WHERE id = ?')->execute([$amount, $userId]);
+            $pdo->prepare('INSERT INTO coin_transactions (user_id, transaction_type, coin_amount, description) VALUES (?, ?, ?, ?)')
+                ->execute([$userId, 'ADMIN_DEBIT', -$amount, $description]);
+            return;
+        }
+
+        $pdo->prepare('UPDATE app_users SET coin_balance = coin_balance + ? WHERE id = ?')->execute([$amount, $userId]);
+        $pdo->prepare('INSERT INTO coin_transactions (user_id, transaction_type, coin_amount, description) VALUES (?, ?, ?, ?)')
+            ->execute([$userId, 'ADMIN_CREDIT', $amount, $description]);
+    }
+}
+

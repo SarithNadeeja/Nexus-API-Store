@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Keys | Nexus API Store</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  <header class="navbar" id="navbar"></header>
+  <main>
+    <section class="page-header">
+      <div class="container">
+        <span class="badge">Marketplace Access</span>
+        <h1>Buy API Keys with <span class="gradient-text">Coins</span></h1>
+        <p class="muted">Recharge your wallet, unlock keys, and manage purchases from your dashboard.</p>
+      </div>
+    </section>
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <div id="marketplace-list"></div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="container grid-2">
+        <div class="glass-card card">
+          <h2>How to Get Your API Key</h2>
+          <ol class="muted">
+            <li>Create an account and verify your email</li>
+            <li>Recharge coins from your dashboard</li>
+            <li>Buy the API listing you need</li>
+            <li>Copy your key and integrate immediately</li>
+          </ol>
+        </div>
+        <div class="glass-card card">
+          <h2>Security Best Practices</h2>
+          <ul class="muted">
+            <li>Store keys in environment variables</li>
+            <li>Never expose keys in frontend code</li>
+            <li>Rotate keys regularly</li>
+            <li>Make API calls from your server</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><div class="container muted">© 2026 Nexus API Store</div></footer>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+  <script src="/assets/js/navbar.js"></script>
+  <script src="/assets/js/marketplace.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => renderMarketplace('marketplace-list'));
+    document.addEventListener('nexus-auth-changed', () => renderMarketplace('marketplace-list'));
+  </script>
+</body>
+</html>

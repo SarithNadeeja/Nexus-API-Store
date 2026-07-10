@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email | Nexus API Store</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body class="auth-overlay">
+  <div class="auth-card">
+    <span class="badge">Email Verification</span>
+    <h1>Confirm your email</h1>
+    <p class="muted">We are verifying your Nexus API Store account.</p>
+    <div id="verify-status" class="muted">Verifying...</div>
+    <a href="/login.html" class="btn btn-secondary" style="width:100%;margin-top:1rem;display:flex;">Back to Sign In</a>
+  </div>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+  <script>
+    (async () => {
+      const box = document.getElementById('verify-status');
+      const token = new URLSearchParams(location.search).get('token');
+      if (!token) {
+        box.innerHTML = '<div class="alert error">Verification token is missing.</div>';
+        return;
+      }
+      try {
+        const result = await NexusApi.verifyEmail(token);
+        await NexusAuth.logout();
+        box.innerHTML = `<div class="alert success">${result.message}</div>`;
+        setTimeout(() => location.href = '/login.html', 2500);
+      } catch (err) {
+        box.innerHTML = `<div class="alert error">${err.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

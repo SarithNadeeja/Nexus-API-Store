@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In | Nexus API Store</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body class="auth-overlay">
+  <div class="auth-card">
+    <span class="badge">Account Access</span>
+    <h1>Nexus API Store</h1>
+    <p class="muted">Sign in or create an account to recharge coins and buy API keys.</p>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-login" type="button">Sign In</button>
+      <button class="tab" id="tab-register" type="button">Register</button>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <form id="auth-form">
+      <div class="field" id="full-name-field" style="display:none;">
+        <label>Full Name</label>
+        <input name="fullName" type="text" placeholder="Your name">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input name="email" type="email" required placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input name="password" type="password" minlength="8" required placeholder="Minimum 8 characters">
+      </div>
+      <button class="btn btn-primary" style="width:100%;" type="submit">Continue</button>
+    </form>
+
+    <div style="margin:1rem 0;text-align:center;color:var(--muted);">or use Google</div>
+    <a class="btn btn-secondary" style="width:100%;display:flex;" href="/oauth/google-start.php">Continue with Google</a>
+
+    <button class="btn btn-secondary" id="resend-btn" style="width:100%;margin-top:1rem;display:none;" type="button">Resend verification email</button>
+    <a href="/index.html" class="muted" style="display:block;text-align:center;margin-top:1rem;">Back to home</a>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+  <script>
+    let mode = new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'login';
+    const alertBox = document.getElementById('alert-box');
+    const form = document.getElementById('auth-form');
+    const fullNameField = document.getElementById('full-name-field');
+    const resendBtn = document.getElementById('resend-btn');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+
+    function setMode(next) {
+      mode = next;
+      tabLogin.classList.toggle('active', mode === 'login');
+      tabRegister.classList.toggle('active', mode === 'register');
+      fullNameField.style.display = mode === 'register' ? 'grid' : 'none';
+      alertBox.innerHTML = '';
+      resendBtn.style.display = 'none';
+    }
+
+    tabLogin.addEventListener('click', () => setMode('login'));
+    tabRegister.addEventListener('click', () => setMode('register'));
+    setMode(mode);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alertBox.innerHTML = '';
+      const data = Object.fromEntries(new FormData(form).entries());
+      try {
+        if (mode === 'register') {
+          const result = await NexusAuth.register(data.fullName, data.email, data.password);
+          setMode('login');
+          alertBox.innerHTML = `<div class="alert success">${result.message}</div>`;
+          if (!result.emailSent) {
+            alertBox.innerHTML += `<div class="alert error">Verification email could not be sent. Use resend below.</div>`;
+          }
+          resendBtn.style.display = 'block';
+        } else {
+          await NexusAuth.login(data.email, data.password);
+          location.href = '/dashboard.html';
+        }
+      } catch (err) {
+        alertBox.innerHTML = `<div class="alert error">${err.message}</div>`;
+        if (err.message.toLowerCase().includes('verify your email')) {
+          resendBtn.style.display = 'block';
+        }
+      }
+    });
+
+    resendBtn.addEventListener('click', async () => {
+      const email = form.email.value.trim();
+      if (!email) return;
+      try {
+        await NexusApi.resendVerification(email);
+        alertBox.innerHTML = `<div class="alert success">Verification email sent again. Check your inbox and spam folder.</div>`;
+      } catch (err) {
+        alertBox.innerHTML = `<div class="alert error">${err.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>

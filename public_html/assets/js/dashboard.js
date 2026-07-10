@@ -1,12 +1,11 @@
-const RECHARGE_PACKAGES = [
-  { coins: 100, price: 1.0, tone: 'package-blue' },
-  { coins: 250, price: 2.0, tone: 'package-purple' },
-  { coins: 500, price: 4.0, tone: 'package-orange' },
-  { coins: 1000, price: 7.0, tone: 'package-green' },
-];
-
-let selectedRechargeCoins = 100;
+let rechargePackages = [];
+let customRecharge = null;
+let whatsappNumber = '';
+let selectedPackageId = null;
+let rechargeMode = 'package';
+let customCoinAmount = '';
 let showAllActivity = false;
+let packagesLoadError = false;
 
 function formatActivityDate(value) {
   const date = new Date(value);
@@ -84,6 +83,123 @@ function activityIcon(type) {
   return '👛';
 }
 
+async function loadRechargePackages() {
+  packagesLoadError = false;
+
+  try {
+    const data = await NexusApi.getCoinPackages();
+    if (Array.isArray(data)) {
+      rechargePackages = data;
+      customRecharge = null;
+    } else {
+      rechargePackages = Array.isArray(data.packages) ? data.packages : [];
+      customRecharge = data.customRecharge || null;
+      whatsappNumber = data.whatsappNumber || '';
+    }
+  } catch (_) {
+    rechargePackages = [];
+    customRecharge = null;
+    whatsappNumber = '';
+    packagesLoadError = true;
+  }
+
+  if (rechargeMode === 'package' && !rechargePackages.some((pkg) => pkg.id === selectedPackageId)) {
+    selectedPackageId = rechargePackages[0]?.id ?? null;
+    if (!selectedPackageId && customRecharge?.enabled) {
+      rechargeMode = 'custom';
+    }
+  }
+
+  if (rechargeMode === 'package' && !selectedPackageId && !customRecharge?.enabled) {
+    rechargeMode = 'package';
+  }
+}
+
+function getSelectedPackage() {
+  return rechargePackages.find((pkg) => pkg.id === selectedPackageId) || null;
+}
+
+function getCustomCoinsValue() {
+  const value = Number(customCoinAmount);
+  return Number.isFinite(value) ? Math.floor(value) : 0;
+}
+
+function getCustomPrice(coins) {
+  if (!customRecharge?.enabled || !coins) return 0;
+  return Math.round(coins * Number(customRecharge.pricePerCoin) * 100) / 100;
+}
+
+function isCustomAmountValid() {
+  if (!customRecharge?.enabled) return false;
+  const coins = getCustomCoinsValue();
+  return coins >= customRecharge.minCoins && coins <= customRecharge.maxCoins;
+}
+
+function getRechargeButtonLabel() {
+  if (rechargeMode === 'custom') {
+    const coins = getCustomCoinsValue();
+    if (!isCustomAmountValid()) return 'Enter a valid custom amount';
+    return `Request ${coins.toLocaleString()} Coins via WhatsApp ($${getCustomPrice(coins).toFixed(2)})`;
+  }
+
+  const selectedPackage = getSelectedPackage();
+  if (!selectedPackage) return 'No package selected';
+  return `Request ${selectedPackage.coins.toLocaleString()} Coins via WhatsApp ($${Number(selectedPackage.price).toFixed(2)})`;
+}
+
+function buildWhatsAppMessage(user) {
+  const lines = [
+    'Hello Nexus API Store,',
+    '',
+    'I would like to request a coin wallet recharge.',
+    '',
+    '*Account Details*',
+    `User ID: ${user.userId ?? '—'}`,
+    `Name: ${user.fullName || '—'}`,
+    `Email: ${user.email || '—'}`,
+    `Current Balance: ${Number(user.coinBalance).toLocaleString()} coins`,
+    '',
+    '*Request*',
+  ];
+
+  if (rechargeMode === 'custom') {
+    const coins = getCustomCoinsValue();
+    lines.push(
+      'Type: Custom Coin Amount',
+      `Coins Requested: ${coins.toLocaleString()}`,
+      `Estimated Price: $${getCustomPrice(coins).toFixed(2)}`,
+    );
+  } else {
+    const selected = getSelectedPackage();
+    lines.push(
+      'Type: Coin Package',
+      `Package: ${selected?.name || '—'}`,
+      `Coins: ${selected?.coins?.toLocaleString() ?? '—'}`,
+      `Price: $${Number(selected?.price ?? 0).toFixed(2)}`,
+    );
+  }
+
+  lines.push('', 'Thank you.');
+  return lines.join('\n');
+}
+
+function openWhatsAppRequest(user) {
+  const number = String(whatsappNumber).replace(/\D+/g, '');
+  if (!number) {
+    alert('WhatsApp contact is not configured yet. Please contact support.');
+    return;
+  }
+
+  const message = buildWhatsAppMessage(user);
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function canRecharge() {
+  if (rechargeMode === 'custom') return isCustomAmountValid();
+  return Boolean(getSelectedPackage());
+}
+
 function renderDashboard() {
   const container = document.getElementById('dashboard-content');
   if (!container) return;
@@ -101,6 +217,8 @@ function renderDashboard() {
   const user = NexusAuth.user;
   const transactions = user.transactions || [];
   const visibleTransactions = showAllActivity ? transactions : transactions.slice(0, 5);
+  const customCoins = getCustomCoinsValue();
+  const customPrice = getCustomPrice(customCoins);
 
   container.innerHTML = `
     <div class="wallet-stats-grid">
@@ -144,26 +262,58 @@ function renderDashboard() {
       <div class="wallet-recharge-main">
         <div class="wallet-section-head">
           <h2>⚡ Recharge Coins</h2>
-          <p>Choose a package that suits your needs.</p>
+          <p>Choose a package or enter a custom coin amount.</p>
         </div>
 
         <div class="wallet-packages-grid">
-          ${RECHARGE_PACKAGES.map((pkg) => `
+          ${rechargePackages.length ? rechargePackages.map((pkg) => `
             <button
-              class="wallet-package-card tone-${pkg.tone}${selectedRechargeCoins === pkg.coins ? ' is-selected' : ''}"
+              class="wallet-package-card ${pkg.tone}${rechargeMode === 'package' && selectedPackageId === pkg.id ? ' is-selected' : ''}"
               type="button"
-              data-recharge-coins="${pkg.coins}"
+              data-package-id="${pkg.id}"
             >
-              ${selectedRechargeCoins === pkg.coins ? '<span class="wallet-package-check">✓</span>' : ''}
+              ${rechargeMode === 'package' && selectedPackageId === pkg.id ? '<span class="wallet-package-check">✓</span>' : ''}
               <span class="wallet-package-icon">◎</span>
-              <strong>${pkg.coins} Coins</strong>
-              <span class="wallet-package-price">$${pkg.price.toFixed(2)}</span>
+              <strong>${pkg.coins.toLocaleString()} Coins</strong>
+              <span class="wallet-package-price">$${Number(pkg.price).toFixed(2)}</span>
             </button>
-          `).join('')}
+          `).join('') : `
+            <div class="wallet-packages-empty">
+              <p>${packagesLoadError ? 'Unable to load coin packages right now.' : 'No active coin packages are available.'}</p>
+            </div>
+          `}
         </div>
 
-        <button class="btn btn-primary wallet-recharge-btn" id="wallet-recharge-btn" type="button">
-          Recharge ${selectedRechargeCoins} Coins
+        ${customRecharge?.enabled ? `
+          <div class="wallet-custom-recharge ${rechargeMode === 'custom' ? 'is-selected' : ''}" id="wallet-custom-recharge">
+            <div class="wallet-custom-head">
+              <h3>Custom Amount</h3>
+              <p>Enter between ${customRecharge.minCoins.toLocaleString()} and ${customRecharge.maxCoins.toLocaleString()} coins</p>
+            </div>
+            <div class="wallet-custom-input-row">
+              <div class="input-with-icon">
+                <span class="input-icon">◎</span>
+                <input
+                  type="number"
+                  id="custom-coin-input"
+                  min="${customRecharge.minCoins}"
+                  max="${customRecharge.maxCoins}"
+                  step="1"
+                  value="${customCoinAmount}"
+                  placeholder="Enter coin amount"
+                >
+              </div>
+              <div class="wallet-custom-price-box">
+                <span>Estimated price</span>
+                <strong id="custom-coin-price-display">$${customPrice.toFixed(2)}</strong>
+              </div>
+            </div>
+            <p class="wallet-custom-hint">Rate: $${Number(customRecharge.pricePerCoin).toFixed(4)} per coin</p>
+          </div>
+        ` : ''}
+
+        <button class="btn btn-primary wallet-recharge-btn" id="wallet-recharge-btn" type="button" ${!canRecharge() ? 'disabled' : ''}>
+          📱 ${getRechargeButtonLabel()}
         </button>
       </div>
 
@@ -171,7 +321,7 @@ function renderDashboard() {
         <div class="wallet-sidebar-shield" aria-hidden="true">🛡</div>
         <h3>Why Recharge?</h3>
         <ul class="wallet-benefits-list">
-          <li><span>✓</span> Instant coin credit</li>
+          <li><span>✓</span> Request via WhatsApp</li>
           <li><span>✓</span> Secure transactions</li>
           <li><span>✓</span> No hidden charges</li>
           <li><span>✓</span> Use across all APIs</li>
@@ -225,32 +375,57 @@ function renderDashboard() {
     location.href = '/';
   });
 
-  container.querySelectorAll('[data-recharge-coins]').forEach((button) => {
+  container.querySelectorAll('[data-package-id]').forEach((button) => {
     button.addEventListener('click', () => {
-      selectedRechargeCoins = Number(button.dataset.rechargeCoins || 100);
+      rechargeMode = 'package';
+      selectedPackageId = Number(button.dataset.packageId) || null;
       renderDashboard();
     });
   });
 
-  document.getElementById('wallet-recharge-btn')?.addEventListener('click', async () => {
+  const customSection = document.getElementById('wallet-custom-recharge');
+  const customInput = document.getElementById('custom-coin-input');
+
+  customSection?.addEventListener('click', () => {
+    rechargeMode = 'custom';
+    renderDashboard();
+    document.getElementById('custom-coin-input')?.focus();
+  });
+
+  customInput?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    rechargeMode = 'custom';
+  });
+
+  customInput?.addEventListener('input', () => {
+    rechargeMode = 'custom';
+    customCoinAmount = customInput.value;
+    const priceDisplay = document.getElementById('custom-coin-price-display');
     const button = document.getElementById('wallet-recharge-btn');
-    if (!button) return;
+    const coins = getCustomCoinsValue();
+    const price = getCustomPrice(coins);
 
-    button.disabled = true;
-    button.textContent = 'Processing...';
-
-    try {
-      const session = await NexusApi.recharge(selectedRechargeCoins);
-      NexusAuth.user = session;
-      document.dispatchEvent(new CustomEvent('nexus-auth-changed'));
-      button.textContent = `Recharge ${selectedRechargeCoins} Coins`;
-      button.disabled = false;
-      renderDashboard();
-    } catch (err) {
-      alert(err.message);
-      button.textContent = `Recharge ${selectedRechargeCoins} Coins`;
-      button.disabled = false;
+    if (priceDisplay) priceDisplay.textContent = `$${price.toFixed(2)}`;
+    if (button) {
+      button.disabled = !isCustomAmountValid();
+      button.textContent = `📱 ${getRechargeButtonLabel()}`;
     }
+
+    customSection?.classList.toggle('is-selected', true);
+    container.querySelectorAll('.wallet-package-card.is-selected').forEach((card) => {
+      card.classList.remove('is-selected');
+      card.querySelector('.wallet-package-check')?.remove();
+    });
+  });
+
+  customInput?.addEventListener('focus', () => {
+    rechargeMode = 'custom';
+    customSection?.classList.add('is-selected');
+  });
+
+  document.getElementById('wallet-recharge-btn')?.addEventListener('click', () => {
+    if (!canRecharge() || !NexusAuth.user) return;
+    openWhatsAppRequest(NexusAuth.user);
   });
 
   document.getElementById('wallet-view-all')?.addEventListener('click', () => {
@@ -259,5 +434,15 @@ function renderDashboard() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', renderDashboard);
-document.addEventListener('nexus-auth-changed', renderDashboard);
+async function initDashboard() {
+  if (NexusAuth.loading) {
+    renderDashboard();
+    return;
+  }
+
+  await loadRechargePackages();
+  renderDashboard();
+}
+
+document.addEventListener('DOMContentLoaded', initDashboard);
+document.addEventListener('nexus-auth-changed', initDashboard);

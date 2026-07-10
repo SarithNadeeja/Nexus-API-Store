@@ -30,6 +30,8 @@ require_once __DIR__ . '/Auth.php';
 require_once __DIR__ . '/Mailer.php';
 require_once __DIR__ . '/UserService.php';
 require_once __DIR__ . '/AdminService.php';
+require_once __DIR__ . '/CoinPackageService.php';
 require_once __DIR__ . '/VerificationService.php';
 
 $pdo = Database::connect($config['db']);
+CoinPackageService::ensureSchema($pdo);

@@ -13,6 +13,8 @@ ALTER TABLE IF EXISTS admin_users OWNER TO nexus;
 ALTER TABLE IF EXISTS app_users OWNER TO nexus;
 ALTER TABLE IF EXISTS coin_transactions OWNER TO nexus;
 ALTER TABLE IF EXISTS api_purchases OWNER TO nexus;
+ALTER TABLE IF EXISTS coin_packages OWNER TO nexus;
+ALTER TABLE IF EXISTS coin_settings OWNER TO nexus;
 ALTER TABLE IF EXISTS email_verification_tokens OWNER TO nexus;
 
 ALTER SEQUENCE IF EXISTS categories_id_seq OWNER TO nexus;
@@ -21,4 +23,5 @@ ALTER SEQUENCE IF EXISTS admin_users_id_seq OWNER TO nexus;
 ALTER SEQUENCE IF EXISTS app_users_id_seq OWNER TO nexus;
 ALTER SEQUENCE IF EXISTS coin_transactions_id_seq OWNER TO nexus;
 ALTER SEQUENCE IF EXISTS api_purchases_id_seq OWNER TO nexus;
+ALTER SEQUENCE IF EXISTS coin_packages_id_seq OWNER TO nexus;
 ALTER SEQUENCE IF EXISTS email_verification_tokens_id_seq OWNER TO nexus;

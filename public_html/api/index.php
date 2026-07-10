@@ -22,6 +22,8 @@ try {
     match (true) {
         $path === '/api/public/apis' && $method === 'GET' => json_response(UserService::getPublicApis($pdo)),
 
+        $path === '/api/public/coin-packages' && $method === 'GET' => json_response(CoinPackageService::getPublicCatalog($pdo)),
+
         $path === '/api/auth/register' && $method === 'POST' => (function () use ($pdo, $config) {
             $body = read_json_body();
             json_response(UserService::register($pdo, $config, $body));
@@ -59,7 +61,9 @@ try {
             $user = Auth::requireVerifiedAppUser($pdo);
             $body = read_json_body();
             $coins = (int) ($body['coins'] ?? 0);
-            json_response(UserService::recharge($pdo, $user, $coins));
+            $packageId = isset($body['packageId']) ? (int) $body['packageId'] : null;
+            $custom = !empty($body['custom']);
+            json_response(UserService::recharge($pdo, $user, $coins, $packageId ?: null, $custom));
         })(),
 
         $path === '/api/user/purchases' && $method === 'POST' => (function () use ($pdo) {

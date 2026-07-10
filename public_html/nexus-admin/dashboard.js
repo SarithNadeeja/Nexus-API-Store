@@ -7,11 +7,11 @@ function badgeClass(status) {
   return 'status-badge status-info';
 }
 
-function statCard(label, value, sublabel, iconClass, tone) {
+function statCard(label, value, sublabel, iconClass, tone, accent) {
   return `
-    <article class="dash-stat-card">
+    <article class="dash-stat-card ${accent}">
       <div class="dash-stat-icon ${tone}">${iconClass}</div>
-      <div>
+      <div class="dash-stat-body">
         <div class="dash-stat-label">${label}</div>
         <div class="dash-stat-value" data-stat="${label.toLowerCase().replace(/\s+/g, '-')}">${value}</div>
         <div class="dash-stat-sub">${sublabel}</div>
@@ -23,10 +23,10 @@ function renderStats(counts) {
   const el = document.getElementById('dashboard-stats');
   if (!el) return;
   el.innerHTML = [
-    statCard('Categories', counts.categories, 'Total categories', '▦', 'tone-purple'),
-    statCard('API Listings', counts.apis, 'Total API listings', '{ }', 'tone-green'),
-    statCard('Users', counts.users, 'Total registered users', '👥', 'tone-blue'),
-    statCard('Admins', counts.admins, 'Total admin accounts', '🛡', 'tone-orange'),
+    statCard('Categories', counts.categories, 'Total categories', '▦', 'tone-purple', 'accent-purple'),
+    statCard('API Listings', counts.apis, 'Total API listings', '{ }', 'tone-green', 'accent-green'),
+    statCard('Users', counts.users, 'Total registered users', '👥', 'tone-blue', 'accent-blue'),
+    statCard('Admins', counts.admins, 'Total admin accounts', '🛡', 'tone-orange', 'accent-orange'),
   ].join('');
 }
 
@@ -59,24 +59,33 @@ function renderChart(chart) {
           data: chart.users,
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.12)',
-          tension: 0.35,
+          tension: 0.42,
           fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
         },
         {
           label: 'API Listings',
           data: chart.apis,
           borderColor: '#10b981',
           backgroundColor: 'rgba(16, 185, 129, 0.08)',
-          tension: 0.35,
+          tension: 0.42,
           fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
         },
         {
           label: 'API Keys Generated',
           data: chart.keys,
           borderColor: '#f59e0b',
           backgroundColor: 'rgba(245, 158, 11, 0.08)',
-          tension: 0.35,
+          tension: 0.42,
           fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
         },
       ],
     },
@@ -205,8 +214,9 @@ function renderSystem(system) {
 function renderNotifications(count) {
   const badge = document.getElementById('notification-count');
   if (!badge) return;
-  badge.textContent = String(count);
+  badge.textContent = count > 0 ? '' : '0';
   badge.hidden = count <= 0;
+  badge.classList.toggle('has-alert', count > 0);
 }
 
 function escapeHtml(value) {
@@ -216,7 +226,9 @@ function escapeHtml(value) {
 }
 
 async function loadDashboard() {
-  const response = await fetch('/nexus-admin/dashboard-data.php', { credentials: 'same-origin' });
+  const periodSelect = document.getElementById('chart-period');
+  const days = Number(periodSelect?.value || 7);
+  const response = await fetch(`/nexus-admin/dashboard-data.php?days=${days}`, { credentials: 'same-origin' });
   if (!response.ok) throw new Error('Failed to load dashboard data');
   const data = await response.json();
 
@@ -243,12 +255,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     searchInput.addEventListener('input', () => {
       const query = searchInput.value.trim().toLowerCase();
-      document.querySelectorAll('.sidebar-nav a').forEach((link) => {
+      document.querySelectorAll('.sidebar-nav .nav-link').forEach((link) => {
         const match = link.textContent.toLowerCase().includes(query);
         link.style.display = match || query === '' ? '' : 'none';
       });
     });
   }
+
+  const periodSelect = document.getElementById('chart-period');
+  periodSelect?.addEventListener('change', () => {
+    loadDashboard().catch(() => {});
+  });
 
   loadDashboard().catch(() => {
     const el = document.getElementById('dashboard-root');

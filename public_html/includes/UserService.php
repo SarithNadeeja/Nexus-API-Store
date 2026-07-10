@@ -146,15 +146,57 @@ final class UserService
         return $result;
     }
 
-    public static function recharge(PDO $pdo, array $user, int $coins): array
+    public static function recharge(PDO $pdo, array $user, int $coins, ?int $packageId = null, bool $custom = false): array
     {
-        if ($coins < 50 || $coins > 100000) {
-            throw new InvalidArgumentException('Coins must be between 50 and 100000.');
+        if ($custom) {
+            $settings = CoinPackageService::getCustomSettings($pdo);
+            if (!db_bool($settings['custom_recharge_enabled'])) {
+                throw new InvalidArgumentException('Custom coin recharge is not available right now.');
+            }
+
+            $minCoins = (int) $settings['custom_coin_min'];
+            $maxCoins = (int) $settings['custom_coin_max'];
+            if ($coins < $minCoins || $coins > $maxCoins) {
+                throw new InvalidArgumentException("Custom amount must be between {$minCoins} and {$maxCoins} coins.");
+            }
+
+            $price = CoinPackageService::calculateCustomPrice($settings, $coins);
+
+            $pdo->prepare('UPDATE app_users SET coin_balance = coin_balance + ? WHERE id = ?')
+                ->execute([$coins, $user['id']]);
+            self::addTransaction(
+                $pdo,
+                (int) $user['id'],
+                'RECHARGE',
+                $coins,
+                $coins . ' custom coins added to your wallet ($' . number_format($price, 2) . ')'
+            );
+
+            $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');
+            $stmt->execute([$user['id']]);
+            return self::buildSession($pdo, $stmt->fetch());
         }
+
+        if ($packageId === null || $packageId <= 0) {
+            throw new InvalidArgumentException('Please select a valid coin package.');
+        }
+
+        $package = CoinPackageService::findActiveById($pdo, $packageId);
+        if (!$package) {
+            throw new InvalidArgumentException('This coin package is not available.');
+        }
+
+        $coins = (int) $package['coin_amount'];
 
         $pdo->prepare('UPDATE app_users SET coin_balance = coin_balance + ? WHERE id = ?')
             ->execute([$coins, $user['id']]);
-        self::addTransaction($pdo, (int) $user['id'], 'RECHARGE', $coins, $coins . ' coins added to your wallet');
+        self::addTransaction(
+            $pdo,
+            (int) $user['id'],
+            'RECHARGE',
+            $coins,
+            $coins . ' coins added to your wallet (' . $package['name'] . ')'
+        );
 
         $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');
         $stmt->execute([$user['id']]);
@@ -275,6 +317,7 @@ final class UserService
 
         return [
             'authenticated' => true,
+            'userId' => (int) $user['id'],
             'emailVerified' => db_bool($user['email_verified']),
             'fullName' => $user['full_name'],
             'email' => $user['email'],

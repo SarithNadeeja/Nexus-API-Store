@@ -698,10 +698,111 @@ a { color: inherit; text-decoration: none; }
   font-size: .75rem;
   font-weight: 700;
 }
+.wallet-packages-empty {
+  grid-column: 1 / -1;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 1rem;
+}
+
+.wallet-packages-empty p {
+  margin: 0;
+  max-width: 28rem;
+  margin-inline: auto;
+  line-height: 1.6;
+}
+
 .wallet-recharge-btn {
   margin-top: 1.25rem;
   min-width: 220px;
 }
+
+.wallet-custom-recharge {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.55);
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+
+.wallet-custom-recharge.is-selected {
+  border-color: rgba(59, 130, 246, 0.65);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25), 0 12px 30px rgba(59, 130, 246, 0.12);
+}
+
+.wallet-custom-head h3 {
+  margin: 0 0 .35rem;
+  font-size: 1.05rem;
+}
+
+.wallet-custom-head p,
+.wallet-custom-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.wallet-custom-hint {
+  margin-top: .75rem;
+}
+
+.wallet-custom-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  margin-top: 1rem;
+}
+
+.wallet-custom-input-row .input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.75);
+}
+
+.wallet-custom-input-row .input-with-icon input {
+  border: 0;
+  background: transparent;
+  padding: 12px 0;
+  flex: 1;
+  color: white;
+  width: 100%;
+}
+
+.wallet-custom-input-row .input-icon {
+  color: #fbbf24;
+  font-size: 16px;
+}
+
+.wallet-custom-price-box {
+  min-width: 140px;
+  padding: .85rem 1rem;
+  border-radius: .85rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.08);
+  text-align: right;
+}
+
+.wallet-custom-price-box span {
+  display: block;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.wallet-custom-price-box strong {
+  display: block;
+  margin-top: .2rem;
+  font-size: 1.15rem;
+  color: #93c5fd;
+}
+
 .wallet-recharge-sidebar {
   position: relative;
   overflow: hidden;
@@ -858,6 +959,11 @@ a { color: inherit; text-decoration: none; }
   .wallet-activity-right { text-align: left; width: 100%; }
   .wallet-hero-visual { min-height: 220px; }
 }
+  .wallet-custom-input-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 520px) {
   .wallet-packages-grid { grid-template-columns: 1fr; }
 }

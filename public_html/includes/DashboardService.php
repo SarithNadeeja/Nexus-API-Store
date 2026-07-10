@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 final class DashboardService
 {
-    public static function getData(PDO $pdo): array
+    public static function getData(PDO $pdo, int $days = 7): array
     {
+        $days = max(7, min(30, $days));
+
         $start = microtime(true);
         $pdo->query('SELECT 1');
         $dbMs = (int) round((microtime(true) - $start) * 1000);
@@ -15,7 +17,7 @@ final class DashboardService
 
         return [
             'counts' => $counts,
-            'chart' => self::chartSeries($pdo),
+            'chart' => self::chartSeries($pdo, $days),
             'recentActivity' => self::recentActivity($pdo),
             'topCategories' => self::topCategories($pdo),
             'topApis' => self::topApis($pdo),
@@ -32,36 +34,37 @@ final class DashboardService
         ];
     }
 
-    private static function chartSeries(PDO $pdo): array
+    private static function chartSeries(PDO $pdo, int $days = 7): array
     {
-        $days = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $days[] = (new DateTimeImmutable("-{$i} days"))->format('Y-m-d');
+        $dayList = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $dayList[] = (new DateTimeImmutable("-{$i} days"))->format('Y-m-d');
         }
 
-        $users = self::countsByDay($pdo, 'app_users');
-        $apis = self::countsByDay($pdo, 'api_listings');
-        $keys = self::countsByDay($pdo, 'api_purchases');
+        $users = self::countsByDay($pdo, 'app_users', $days);
+        $apis = self::countsByDay($pdo, 'api_listings', $days);
+        $keys = self::countsByDay($pdo, 'api_purchases', $days);
 
-        $labels = array_map(static fn (string $day) => (new DateTimeImmutable($day))->format('M d'), $days);
+        $labels = array_map(static fn (string $day) => (new DateTimeImmutable($day))->format('M d'), $dayList);
 
         return [
             'labels' => $labels,
-            'users' => array_map(static fn (string $day) => $users[$day] ?? 0, $days),
-            'apis' => array_map(static fn (string $day) => $apis[$day] ?? 0, $days),
-            'keys' => array_map(static fn (string $day) => $keys[$day] ?? 0, $days),
+            'users' => array_map(static fn (string $day) => $users[$day] ?? 0, $dayList),
+            'apis' => array_map(static fn (string $day) => $apis[$day] ?? 0, $dayList),
+            'keys' => array_map(static fn (string $day) => $keys[$day] ?? 0, $dayList),
         ];
     }
 
-    private static function countsByDay(PDO $pdo, string $table): array
+    private static function countsByDay(PDO $pdo, string $table, int $days): array
     {
-        $stmt = $pdo->query(
+        $stmt = $pdo->prepare(
             "SELECT DATE(created_at) AS day, COUNT(*)::int AS total
              FROM {$table}
-             WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+             WHERE created_at >= CURRENT_DATE - ?::integer
              GROUP BY DATE(created_at)
              ORDER BY day"
         );
+        $stmt->execute([$days - 1]);
 
         $map = [];
         foreach ($stmt->fetchAll() as $row) {

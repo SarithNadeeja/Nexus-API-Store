@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   searchInput.addEventListener('input', () => {
     const query = searchInput.value.trim().toLowerCase();
-    document.querySelectorAll('.sidebar-nav a').forEach((link) => {
+    document.querySelectorAll('.sidebar-nav .nav-link').forEach((link) => {
       const match = link.textContent.toLowerCase().includes(query);
       link.style.display = match || query === '' ? '' : 'none';
     });

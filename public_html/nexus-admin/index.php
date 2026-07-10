@@ -28,6 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 (int) ($_POST['coinAmount'] ?? 0),
                 trim($_POST['note'] ?? '')
             ),
+            'save_coin_package' => CoinPackageService::save($pdo, $_POST),
+            'delete_coin_package' => CoinPackageService::delete($pdo, (int) ($_POST['id'] ?? 0)),
+            'save_coin_settings' => CoinPackageService::saveCustomSettings($pdo, $_POST),
+            'save_contact_settings' => CoinPackageService::saveContactSettings($pdo, $_POST),
             default => throw new InvalidArgumentException('Unknown action.'),
         };
         flash('success', 'Changes saved successfully.');
@@ -42,6 +46,9 @@ $dashboard = $section === 'dashboard' ? DashboardService::getData($pdo) : null;
 $categories = $pdo->query('SELECT * FROM categories ORDER BY name')->fetchAll();
 $apis = $pdo->query('SELECT a.*, c.name AS category_name FROM api_listings a JOIN categories c ON c.id = a.category_id ORDER BY a.id DESC')->fetchAll();
 $users = $pdo->query('SELECT * FROM app_users ORDER BY created_at DESC')->fetchAll();
+$coinPackages = CoinPackageService::listAll($pdo);
+$coinSettings = CoinPackageService::getCustomSettings($pdo);
+$contactSettings = CoinPackageService::getContactSettings($pdo);
 $admins = $pdo->query('SELECT * FROM admin_users ORDER BY id ASC')->fetchAll();
 $username = Auth::adminUsername();
 ?>
@@ -68,6 +75,9 @@ $username = Auth::adminUsername();
     <?php if ($section === 'admins'): ?>
     <script src="/nexus-admin/admins.js" defer></script>
     <?php endif; ?>
+    <?php if ($section === 'coin-packages'): ?>
+    <script src="/nexus-admin/coins.js" defer></script>
+    <?php endif; ?>
     <?php if ($section !== 'dashboard'): ?>
     <script src="/nexus-admin/admin-shell.js" defer></script>
     <?php endif; ?>
@@ -85,17 +95,16 @@ $username = Auth::adminUsername();
 
         <nav class="sidebar-nav">
             <div class="sidebar-group-label">Main Menu</div>
-            <a href="?section=dashboard" class="<?= $section === 'dashboard' ? 'active' : '' ?>">Dashboard</a>
-            <a href="?section=categories" class="<?= $section === 'categories' ? 'active' : '' ?>">Categories</a>
-            <a href="?section=apis" class="<?= $section === 'apis' ? 'active' : '' ?>">API Listings</a>
-            <a href="?section=apis" class="<?= $section === 'apis' ? 'active' : '' ?>">API Keys</a>
-            <a href="?section=users" class="<?= $section === 'users' ? 'active' : '' ?>">User Wallets</a>
-            <a href="?section=users" class="<?= $section === 'users' ? 'active' : '' ?>">Users</a>
+            <a href="?section=dashboard" class="nav-link <?= $section === 'dashboard' ? 'active' : '' ?>"><span class="nav-icon">⌂</span><span>Dashboard</span></a>
+            <a href="?section=categories" class="nav-link <?= $section === 'categories' ? 'active' : '' ?>"><span class="nav-icon">▦</span><span>Categories</span></a>
+            <a href="?section=apis" class="nav-link <?= $section === 'apis' ? 'active' : '' ?>"><span class="nav-icon">🔑</span><span>API Keys</span></a>
+            <a href="?section=users" class="nav-link <?= $section === 'users' ? 'active' : '' ?>"><span class="nav-icon">👛</span><span>User Wallets</span></a>
 
             <div class="sidebar-group-label">Administration</div>
-            <a href="?section=admins" class="<?= $section === 'admins' ? 'active' : '' ?>">Admin Accounts</a>
-            <a href="?section=dashboard" class="">Activity Logs</a>
-            <a href="?section=admins" class="">System Settings</a>
+            <a href="?section=coin-packages" class="nav-link <?= $section === 'coin-packages' ? 'active' : '' ?>"><span class="nav-icon">◎</span><span>Coin Packages</span></a>
+            <a href="?section=admins" class="nav-link <?= $section === 'admins' ? 'active' : '' ?>"><span class="nav-icon">👤</span><span>Admin Accounts</span></a>
+            <a href="?section=dashboard" class="nav-link"><span class="nav-icon">📋</span><span>Activity Logs</span></a>
+            <a href="?section=settings" class="nav-link <?= $section === 'settings' ? 'active' : '' ?>"><span class="nav-icon">⚙</span><span>System Settings</span></a>
         </nav>
 
         <div class="sidebar-footer">
@@ -110,7 +119,7 @@ $username = Auth::adminUsername();
         </div>
     </aside>
     <main class="content-shell">
-        <?php if (!in_array($section, ['dashboard', 'categories', 'apis', 'users', 'admins'], true)): ?>
+        <?php if (!in_array($section, ['dashboard', 'categories', 'apis', 'users', 'admins', 'coin-packages'], true)): ?>
         <header class="topbar">
             <div><div class="eyebrow">Admin Panel</div><h2>Manage your API selling platform</h2></div>
         </header>
@@ -119,17 +128,17 @@ $username = Auth::adminUsername();
         <?php if ($error): ?><div class="alert error"><?= h($error) ?></div><?php endif; ?>
 
         <?php if ($section === 'dashboard' && $dashboard): ?>
-        <section id="dashboard-root" class="dashboard-page">
-            <header class="dashboard-header">
+        <section id="dashboard-root" class="dashboard-page section-page">
+            <header class="dashboard-header section-page-header">
                 <div>
                     <h2>Dashboard</h2>
                     <p>Welcome back, <?= h($username) ?>! Here's what's happening with your API platform.</p>
                     <span class="dashboard-updated" id="dashboard-updated">Live data enabled</span>
                 </div>
-                <div class="dashboard-header-actions">
+                <div class="dashboard-header-actions section-page-actions">
                     <label class="dashboard-search">
                         <span>⌕</span>
-                        <input type="search" id="dashboard-search" placeholder="Search sections..." autocomplete="off">
+                        <input type="search" id="dashboard-search" placeholder="Search anything..." autocomplete="off">
                         <kbd>Ctrl + K</kbd>
                     </label>
                     <button class="icon-btn" type="button" title="Notifications">
@@ -142,38 +151,39 @@ $username = Auth::adminUsername();
                             <strong><?= h($username) ?></strong>
                             <span>Super Admin</span>
                         </div>
+                        <span class="profile-chevron">▾</span>
                     </div>
                 </div>
             </header>
 
             <div class="dashboard-stats-grid" id="dashboard-stats">
-                <article class="dash-stat-card">
+                <article class="dash-stat-card accent-purple">
                     <div class="dash-stat-icon tone-purple">▦</div>
-                    <div>
+                    <div class="dash-stat-body">
                         <div class="dash-stat-label">Categories</div>
                         <div class="dash-stat-value"><?= (int) $dashboard['counts']['categories'] ?></div>
                         <div class="dash-stat-sub">Total categories</div>
                     </div>
                 </article>
-                <article class="dash-stat-card">
+                <article class="dash-stat-card accent-green">
                     <div class="dash-stat-icon tone-green">{ }</div>
-                    <div>
+                    <div class="dash-stat-body">
                         <div class="dash-stat-label">API Listings</div>
                         <div class="dash-stat-value"><?= (int) $dashboard['counts']['apis'] ?></div>
                         <div class="dash-stat-sub">Total API listings</div>
                     </div>
                 </article>
-                <article class="dash-stat-card">
+                <article class="dash-stat-card accent-blue">
                     <div class="dash-stat-icon tone-blue">👥</div>
-                    <div>
+                    <div class="dash-stat-body">
                         <div class="dash-stat-label">Users</div>
                         <div class="dash-stat-value"><?= (int) $dashboard['counts']['users'] ?></div>
                         <div class="dash-stat-sub">Total registered users</div>
                     </div>
                 </article>
-                <article class="dash-stat-card">
+                <article class="dash-stat-card accent-orange">
                     <div class="dash-stat-icon tone-orange">🛡</div>
-                    <div>
+                    <div class="dash-stat-body">
                         <div class="dash-stat-label">Admins</div>
                         <div class="dash-stat-value"><?= (int) $dashboard['counts']['admins'] ?></div>
                         <div class="dash-stat-sub">Total admin accounts</div>
@@ -186,8 +196,15 @@ $username = Auth::adminUsername();
                     <div class="panel-head">
                         <div>
                             <h3>Platform Overview</h3>
-                            <p>Last 7 days</p>
+                            <p>Track platform growth and API usage</p>
                         </div>
+                        <label class="chart-period-select">
+                            <select id="chart-period" aria-label="Chart period">
+                                <option value="7" selected>Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30">Last 30 days</option>
+                            </select>
+                        </label>
                     </div>
                     <div class="chart-wrap">
                         <canvas id="overview-chart"></canvas>
@@ -301,6 +318,7 @@ $username = Auth::adminUsername();
                             <strong><?= h($username) ?></strong>
                             <span>Super Admin</span>
                         </div>
+                        <span class="profile-chevron">▾</span>
                     </div>
                 </div>
             </header>
@@ -512,6 +530,7 @@ $username = Auth::adminUsername();
                             <strong><?= h($username) ?></strong>
                             <span>Super Admin</span>
                         </div>
+                        <span class="profile-chevron">▾</span>
                     </div>
                 </div>
             </header>
@@ -660,6 +679,296 @@ $username = Auth::adminUsername();
         </section>
         <?php endif; ?>
 
+        <?php if ($section === 'coin-packages'): ?>
+        <section id="coin-packages-page" class="section-page">
+            <header class="section-page-header">
+                <div>
+                    <div class="breadcrumbs"><a href="?section=dashboard">Dashboard</a> <span>›</span> <span>Coin Packages</span></div>
+                    <h2>Coin Packages</h2>
+                    <p>Manage recharge packages and update coin prices shown on the customer wallet.</p>
+                </div>
+                <div class="section-page-actions">
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="admin-shell-search" placeholder="Search anything..." autocomplete="off">
+                        <kbd>Ctrl + K</kbd>
+                    </label>
+                    <button class="icon-btn" type="button" title="Notifications">🔔</button>
+                    <div class="profile-chip">
+                        <div class="profile-avatar"><?= h(strtoupper(substr($username ?? 'A', 0, 1))) ?></div>
+                        <div>
+                            <strong><?= h($username) ?></strong>
+                            <span>Super Admin</span>
+                        </div>
+                        <span class="profile-chevron">▾</span>
+                    </div>
+                </div>
+            </header>
+
+            <article class="section-panel">
+                <div class="panel-title-row">
+                    <div class="panel-title-icon tone-green">⚙</div>
+                    <div>
+                        <h3>Custom Coin Recharge</h3>
+                        <p>Let customers enter a custom coin amount on the wallet dashboard.</p>
+                    </div>
+                </div>
+
+                <form method="post" class="category-form coin-settings-form">
+                    <input type="hidden" name="action" value="save_coin_settings">
+                    <input type="hidden" name="return_section" value="coin-packages">
+
+                    <label class="field-label checkbox-field">
+                        <input type="checkbox" name="custom_recharge_enabled" value="1" <?= db_bool($coinSettings['custom_recharge_enabled']) ? 'checked' : '' ?>>
+                        <span>Enable custom coin recharge on customer dashboard</span>
+                    </label>
+
+                    <div class="coin-package-fields-row three-up">
+                        <label class="field-label">
+                            <span>Price per coin (USD) <em>*</em></span>
+                            <input type="number" name="custom_coin_price_usd" min="0.0001" step="0.0001" value="<?= h(number_format((float) $coinSettings['custom_coin_price_usd'], 4, '.', '')) ?>" required>
+                        </label>
+                        <label class="field-label">
+                            <span>Minimum coins <em>*</em></span>
+                            <input type="number" name="custom_coin_min" min="1" value="<?= (int) $coinSettings['custom_coin_min'] ?>" required>
+                        </label>
+                        <label class="field-label">
+                            <span>Maximum coins <em>*</em></span>
+                            <input type="number" name="custom_coin_max" min="1" value="<?= (int) $coinSettings['custom_coin_max'] ?>" required>
+                        </label>
+                    </div>
+
+                    <button class="primary-btn" type="submit">💾 Save Custom Settings</button>
+                </form>
+            </article>
+
+            <article class="section-panel">
+                <div class="panel-title-row">
+                    <div class="panel-title-icon tone-blue">◎</div>
+                    <div>
+                        <h3 id="coin-package-form-title">Add / Update Coin Package</h3>
+                        <p>Set coin amount, USD price, and display style for wallet recharge.</p>
+                    </div>
+                </div>
+
+                <div class="category-form-layout">
+                    <form method="post" class="category-form" id="coin-package-form">
+                        <input type="hidden" name="action" value="save_coin_package">
+                        <input type="hidden" name="return_section" value="coin-packages">
+                        <input type="hidden" name="id" id="coin-package-id">
+
+                        <label class="field-label">
+                            <span>Package Name <em>*</em></span>
+                            <input type="text" name="name" id="coin-package-name" placeholder="e.g. Starter Pack" required>
+                        </label>
+
+                        <div class="coin-package-fields-row">
+                            <label class="field-label">
+                                <span>Coins <em>*</em></span>
+                                <input type="number" name="coin_amount" id="coin-package-amount" min="1" placeholder="100" required>
+                            </label>
+                            <label class="field-label">
+                                <span>Price (USD) <em>*</em></span>
+                                <input type="number" name="price_usd" id="coin-package-price" min="0.01" step="0.01" placeholder="1.00" required>
+                            </label>
+                        </div>
+
+                        <div class="coin-package-fields-row">
+                            <label class="field-label">
+                                <span>Card Color</span>
+                                <select name="tone" id="coin-package-tone">
+                                    <option value="package-blue">Blue</option>
+                                    <option value="package-purple">Purple</option>
+                                    <option value="package-orange">Orange</option>
+                                    <option value="package-green">Green</option>
+                                </select>
+                            </label>
+                            <label class="field-label">
+                                <span>Sort Order</span>
+                                <input type="number" name="sort_order" id="coin-package-sort" min="0" value="0">
+                            </label>
+                        </div>
+
+                        <label class="field-label checkbox-field">
+                            <input type="checkbox" name="is_active" id="coin-package-active" value="1" checked>
+                            <span>Active (visible to customers)</span>
+                        </label>
+
+                        <div class="form-actions-row">
+                            <button class="primary-btn" type="submit">💾 Save Package</button>
+                            <button class="secondary-btn" type="button" id="coin-package-reset-btn">✕ Reset</button>
+                        </div>
+                    </form>
+
+                    <aside class="coin-package-preview-card">
+                        <div class="preview-label">Customer Preview</div>
+                        <button class="wallet-package-card preview-package" id="coin-package-preview" type="button">
+                            <span class="wallet-package-icon">◎</span>
+                            <strong id="coin-package-preview-coins">100 Coins</strong>
+                            <span class="wallet-package-price" id="coin-package-preview-price">$1.00</span>
+                        </button>
+                        <p id="coin-package-preview-name">Starter Pack</p>
+                    </aside>
+                </div>
+            </article>
+
+            <article class="section-panel">
+                <div class="table-toolbar">
+                    <div class="panel-title-row compact">
+                        <div class="panel-title-icon tone-purple">☰</div>
+                        <h3>Coin Packages List</h3>
+                    </div>
+                    <div class="table-toolbar-actions">
+                        <label class="table-search">
+                            <span>⌕</span>
+                            <input type="search" id="coin-package-table-search" placeholder="Search packages...">
+                        </label>
+                        <button class="primary-btn" type="button" id="coin-package-add-btn">+ Add Package</button>
+                    </div>
+                </div>
+
+                <div class="table-card flush">
+                    <table class="categories-table coin-packages-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Package</th>
+                                <th>Coins</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Order</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coin-package-table-body">
+                        <?php foreach ($coinPackages as $index => $package): ?>
+                            <?php $active = db_bool($package['is_active']); ?>
+                            <tr
+                                data-package-row
+                                data-id="<?= (int) $package['id'] ?>"
+                                data-name="<?= h($package['name']) ?>"
+                                data-coin-amount="<?= (int) $package['coin_amount'] ?>"
+                                data-price-usd="<?= h((string) $package['price_usd']) ?>"
+                                data-tone="<?= h($package['tone']) ?>"
+                                data-sort-order="<?= (int) $package['sort_order'] ?>"
+                                data-is-active="<?= $active ? '1' : '0' ?>"
+                            >
+                                <td><?= (int) $package['id'] ?></td>
+                                <td>
+                                    <div class="coin-package-name-cell">
+                                        <span class="wallet-package-icon mini <?= h($package['tone']) ?>">◎</span>
+                                        <strong><?= h($package['name']) ?></strong>
+                                    </div>
+                                </td>
+                                <td><?= number_format((int) $package['coin_amount']) ?> coins</td>
+                                <td>$<?= number_format((float) $package['price_usd'], 2) ?></td>
+                                <td>
+                                    <span class="status-badge <?= $active ? 'status-good' : 'status-warn' ?>">
+                                        <?= $active ? 'Active' : 'Hidden' ?>
+                                    </span>
+                                </td>
+                                <td><?= (int) $package['sort_order'] ?></td>
+                                <td>
+                                    <div class="table-action-buttons">
+                                        <button class="icon-action edit" type="button" data-edit-coin-package data-id="<?= (int) $package['id'] ?>" title="Edit">✎</button>
+                                        <form method="post" class="inline-form" onsubmit="return confirm('Delete this coin package?')">
+                                            <input type="hidden" name="action" value="delete_coin_package">
+                                            <input type="hidden" name="return_section" value="coin-packages">
+                                            <input type="hidden" name="id" value="<?= (int) $package['id'] ?>">
+                                            <button class="icon-action delete" type="submit" title="Delete">🗑</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if (!$coinPackages): ?>
+                            <tr><td colspan="7" class="empty-copy">No coin packages yet.</td></tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer">
+                    <div class="wallet-summary" id="coin-package-table-summary">Showing 0 packages</div>
+                    <div class="pagination" id="coin-package-pagination"></div>
+                    <label class="per-page">
+                        <select id="coin-package-per-page">
+                            <option value="5">5 per page</option>
+                            <option value="10" selected>10 per page</option>
+                            <option value="20">20 per page</option>
+                        </select>
+                    </label>
+                </div>
+            </article>
+        </section>
+        <?php endif; ?>
+
+        <?php if ($section === 'settings'): ?>
+        <section id="settings-page" class="section-page">
+            <header class="section-page-header">
+                <div>
+                    <div class="breadcrumbs"><a href="?section=dashboard">Dashboard</a> <span>›</span> <span>System Settings</span></div>
+                    <h2>System Settings</h2>
+                    <p>Manage platform contact details used for customer recharge requests.</p>
+                </div>
+                <div class="section-page-actions">
+                    <label class="dashboard-search">
+                        <span>⌕</span>
+                        <input type="search" id="admin-shell-search" placeholder="Search anything..." autocomplete="off">
+                        <kbd>Ctrl + K</kbd>
+                    </label>
+                    <button class="icon-btn" type="button" title="Notifications">🔔</button>
+                    <div class="profile-chip">
+                        <div class="profile-avatar"><?= h(strtoupper(substr($username ?? 'A', 0, 1))) ?></div>
+                        <div>
+                            <strong><?= h($username) ?></strong>
+                            <span>Super Admin</span>
+                        </div>
+                        <span class="profile-chevron">▾</span>
+                    </div>
+                </div>
+            </header>
+
+            <article class="section-panel">
+                <div class="panel-title-row">
+                    <div class="panel-title-icon tone-green">📱</div>
+                    <div>
+                        <h3>Contact Details</h3>
+                        <p>Update the WhatsApp number customers use when requesting coin recharges from the dashboard.</p>
+                    </div>
+                </div>
+
+                <form method="post" class="category-form contact-settings-form">
+                    <input type="hidden" name="action" value="save_contact_settings">
+                    <input type="hidden" name="return_section" value="settings">
+
+                    <label class="field-label">
+                        <span>WhatsApp Number <em>*</em></span>
+                        <input
+                            type="text"
+                            name="whatsapp_number"
+                            value="<?= h($contactSettings['whatsappNumber']) ?>"
+                            placeholder="e.g. 94771234567"
+                            required
+                            autocomplete="tel"
+                        >
+                    </label>
+                    <p class="form-hint">Country code + number only, no + or spaces. Example: 94771234567 for Sri Lanka.</p>
+
+                    <?php if ($contactSettings['whatsappNumber'] !== ''): ?>
+                        <div class="contact-preview-card">
+                            <strong>Current recharge link</strong>
+                            <p>Customers will message this number when they click “Request via WhatsApp” on the dashboard.</p>
+                            <code>+<?= h($contactSettings['whatsappNumber']) ?></code>
+                        </div>
+                    <?php endif; ?>
+
+                    <button class="primary-btn" type="submit">💾 Save Contact Details</button>
+                </form>
+            </article>
+        </section>
+        <?php endif; ?>
+
         <?php if ($section === 'admins'): ?>
         <section id="admins-page" class="section-page">
             <header class="section-page-header">
@@ -692,6 +1001,7 @@ $username = Auth::adminUsername();
                             <strong><?= h($username) ?></strong>
                             <span>Super Admin</span>
                         </div>
+                        <span class="profile-chevron">▾</span>
                     </div>
                 </div>
             </header>

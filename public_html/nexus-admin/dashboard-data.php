@@ -9,4 +9,5 @@ AdminService::ensureDefaultAdmin($pdo);
 Auth::requireAdmin($pdo);
 
 header('Content-Type: application/json; charset=utf-8');
-echo json_encode(DashboardService::getData($pdo), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+$days = max(7, min(30, (int) ($_GET['days'] ?? 7)));
+echo json_encode(DashboardService::getData($pdo, $days), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS coin_packages (
 CREATE TABLE IF NOT EXISTS coin_settings (
     id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     custom_recharge_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-    custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 0.01,
+    custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 3.00,
     custom_coin_min INTEGER NOT NULL DEFAULT 50,
     custom_coin_max INTEGER NOT NULL DEFAULT 100000,
     whatsapp_number VARCHAR(20) NOT NULL DEFAULT '',
@@ -135,23 +135,23 @@ CREATE TABLE IF NOT EXISTS coin_settings (
 );
 
 INSERT INTO coin_settings (id, custom_recharge_enabled, custom_coin_price_usd, custom_coin_min, custom_coin_max, whatsapp_number)
-SELECT 1, TRUE, 0.01, 50, 100000, ''
+SELECT 1, TRUE, 3.00, 50, 100000, ''
 WHERE NOT EXISTS (SELECT 1 FROM coin_settings WHERE id = 1);
 
 INSERT INTO coin_packages (name, coin_amount, price_usd, tone, sort_order, is_active)
-SELECT 'Starter Pack', 100, 1.00, 'package-blue', 1, TRUE
+SELECT 'Starter Pack', 100, 300.00, 'package-blue', 1, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM coin_packages WHERE coin_amount = 100);
 
 INSERT INTO coin_packages (name, coin_amount, price_usd, tone, sort_order, is_active)
-SELECT 'Growth Pack', 250, 2.00, 'package-purple', 2, TRUE
+SELECT 'Growth Pack', 250, 700.00, 'package-purple', 2, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM coin_packages WHERE coin_amount = 250);
 
 INSERT INTO coin_packages (name, coin_amount, price_usd, tone, sort_order, is_active)
-SELECT 'Pro Pack', 500, 4.00, 'package-orange', 3, TRUE
+SELECT 'Pro Pack', 500, 1300.00, 'package-orange', 3, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM coin_packages WHERE coin_amount = 500);
 
 INSERT INTO coin_packages (name, coin_amount, price_usd, tone, sort_order, is_active)
-SELECT 'Enterprise Pack', 1000, 7.00, 'package-green', 4, TRUE
+SELECT 'Enterprise Pack', 1000, 2500.00, 'package-green', 4, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM coin_packages WHERE coin_amount = 1000);
 
 GRANT ALL PRIVILEGES ON TABLE coin_packages TO {$dbUser};

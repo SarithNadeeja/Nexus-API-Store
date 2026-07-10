@@ -7,6 +7,10 @@ let customCoinAmount = '';
 let showAllActivity = false;
 let packagesLoadError = false;
 
+function formatLkr(amount, decimals = 2) {
+  return window.NexusCurrency?.formatLkr(amount, decimals) ?? `LKR ${Number(amount || 0).toFixed(decimals)}`;
+}
+
 function formatActivityDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
@@ -139,12 +143,12 @@ function getRechargeButtonLabel() {
   if (rechargeMode === 'custom') {
     const coins = getCustomCoinsValue();
     if (!isCustomAmountValid()) return 'Enter a valid custom amount';
-    return `Request ${coins.toLocaleString()} Coins via WhatsApp ($${getCustomPrice(coins).toFixed(2)})`;
+    return `Request ${coins.toLocaleString()} Coins via WhatsApp (${formatLkr(getCustomPrice(coins))})`;
   }
 
   const selectedPackage = getSelectedPackage();
   if (!selectedPackage) return 'No package selected';
-  return `Request ${selectedPackage.coins.toLocaleString()} Coins via WhatsApp ($${Number(selectedPackage.price).toFixed(2)})`;
+  return `Request ${selectedPackage.coins.toLocaleString()} Coins via WhatsApp (${formatLkr(selectedPackage.price)})`;
 }
 
 function buildWhatsAppMessage(user) {
@@ -167,7 +171,7 @@ function buildWhatsAppMessage(user) {
     lines.push(
       'Type: Custom Coin Amount',
       `Coins Requested: ${coins.toLocaleString()}`,
-      `Estimated Price: $${getCustomPrice(coins).toFixed(2)}`,
+      `Estimated Price: ${formatLkr(getCustomPrice(coins))}`,
     );
   } else {
     const selected = getSelectedPackage();
@@ -175,7 +179,7 @@ function buildWhatsAppMessage(user) {
       'Type: Coin Package',
       `Package: ${selected?.name || '—'}`,
       `Coins: ${selected?.coins?.toLocaleString() ?? '—'}`,
-      `Price: $${Number(selected?.price ?? 0).toFixed(2)}`,
+      `Price: ${formatLkr(selected?.price ?? 0)}`,
     );
   }
 
@@ -275,7 +279,7 @@ function renderDashboard() {
               ${rechargeMode === 'package' && selectedPackageId === pkg.id ? '<span class="wallet-package-check">✓</span>' : ''}
               <span class="wallet-package-icon">◎</span>
               <strong>${pkg.coins.toLocaleString()} Coins</strong>
-              <span class="wallet-package-price">$${Number(pkg.price).toFixed(2)}</span>
+              <span class="wallet-package-price">${formatLkr(pkg.price)}</span>
             </button>
           `).join('') : `
             <div class="wallet-packages-empty">
@@ -305,10 +309,10 @@ function renderDashboard() {
               </div>
               <div class="wallet-custom-price-box">
                 <span>Estimated price</span>
-                <strong id="custom-coin-price-display">$${customPrice.toFixed(2)}</strong>
+                <strong id="custom-coin-price-display">${formatLkr(customPrice)}</strong>
               </div>
             </div>
-            <p class="wallet-custom-hint">Rate: $${Number(customRecharge.pricePerCoin).toFixed(4)} per coin</p>
+            <p class="wallet-custom-hint">Rate: ${formatLkr(customRecharge.pricePerCoin, 2)} per coin</p>
           </div>
         ` : ''}
 
@@ -405,7 +409,7 @@ function renderDashboard() {
     const coins = getCustomCoinsValue();
     const price = getCustomPrice(coins);
 
-    if (priceDisplay) priceDisplay.textContent = `$${price.toFixed(2)}`;
+    if (priceDisplay) priceDisplay.textContent = formatLkr(price);
     if (button) {
       button.disabled = !isCustomAmountValid();
       button.textContent = `📱 ${getRechargeButtonLabel()}`;

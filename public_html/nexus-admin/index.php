@@ -126,6 +126,7 @@ $username = Auth::adminUsername();
     <script src="/nexus-admin/admins.js" defer></script>
     <?php endif; ?>
     <?php if ($section === 'coin-packages'): ?>
+    <script src="/assets/js/currency.js"></script>
     <script src="/nexus-admin/coins.js" defer></script>
     <?php endif; ?>
     <?php if ($section !== 'dashboard'): ?>
@@ -781,8 +782,8 @@ $username = Auth::adminUsername();
 
                     <div class="coin-package-fields-row three-up">
                         <label class="field-label">
-                            <span>Price per coin (USD) <em>*</em></span>
-                            <input type="number" name="custom_coin_price_usd" min="0.0001" step="0.0001" value="<?= h(number_format((float) $coinSettings['custom_coin_price_usd'], 4, '.', '')) ?>" required>
+                            <span>Price per coin (LKR) <em>*</em></span>
+                            <input type="number" name="custom_coin_price_usd" min="0.01" step="0.01" value="<?= h(number_format((float) $coinSettings['custom_coin_price_usd'], 2, '.', '')) ?>" required>
                         </label>
                         <label class="field-label">
                             <span>Minimum coins <em>*</em></span>
@@ -803,7 +804,7 @@ $username = Auth::adminUsername();
                     <div class="panel-title-icon tone-blue">◎</div>
                     <div>
                         <h3 id="coin-package-form-title">Add / Update Coin Package</h3>
-                        <p>Set coin amount, USD price, and display style for wallet recharge.</p>
+                        <p>Set coin amount, LKR price, and display style for wallet recharge.</p>
                     </div>
                 </div>
 
@@ -824,8 +825,8 @@ $username = Auth::adminUsername();
                                 <input type="number" name="coin_amount" id="coin-package-amount" min="1" placeholder="100" required>
                             </label>
                             <label class="field-label">
-                                <span>Price (USD) <em>*</em></span>
-                                <input type="number" name="price_usd" id="coin-package-price" min="0.01" step="0.01" placeholder="1.00" required>
+                                <span>Price (LKR) <em>*</em></span>
+                                <input type="number" name="price_usd" id="coin-package-price" min="1" step="1" placeholder="300" required>
                             </label>
                         </div>
 
@@ -861,7 +862,7 @@ $username = Auth::adminUsername();
                         <button class="wallet-package-card preview-package" id="coin-package-preview" type="button">
                             <span class="wallet-package-icon">◎</span>
                             <strong id="coin-package-preview-coins">100 Coins</strong>
-                            <span class="wallet-package-price" id="coin-package-preview-price">$1.00</span>
+                            <span class="wallet-package-price" id="coin-package-preview-price">LKR 300.00</span>
                         </button>
                         <p id="coin-package-preview-name">Starter Pack</p>
                     </aside>
@@ -917,7 +918,7 @@ $username = Auth::adminUsername();
                                     </div>
                                 </td>
                                 <td><?= number_format((int) $package['coin_amount']) ?> coins</td>
-                                <td>$<?= number_format((float) $package['price_usd'], 2) ?></td>
+                                <td><?= format_lkr($package['price_usd']) ?></td>
                                 <td>
                                     <span class="status-badge <?= $active ? 'status-good' : 'status-warn' ?>">
                                         <?= $active ? 'Active' : 'Hidden' ?>

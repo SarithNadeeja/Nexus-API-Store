@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
       previewCard.className = `wallet-package-card preview-package ${tone}`;
     }
     if (previewCoins) previewCoins.textContent = `${coins.toLocaleString()} Coins`;
-    if (previewPrice) previewPrice.textContent = `$${price.toFixed(2)}`;
+    if (previewPrice) previewPrice.textContent = window.NexusCurrency?.formatLkr(price) ?? `LKR ${price.toFixed(2)}`;
     if (previewName) previewName.textContent = nameInput?.value.trim() || 'Package Name';
   }
 

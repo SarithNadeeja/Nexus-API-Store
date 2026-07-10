@@ -169,7 +169,7 @@ final class UserService
                 (int) $user['id'],
                 'RECHARGE',
                 $coins,
-                $coins . ' custom coins added to your wallet ($' . number_format($price, 2) . ')'
+                $coins . ' custom coins added to your wallet (' . format_lkr($price) . ')'
             );
 
             $stmt = $pdo->prepare('SELECT * FROM app_users WHERE id = ?');

@@ -5,10 +5,10 @@ declare(strict_types=1);
 final class CoinPackageService
 {
     private const DEFAULT_PACKAGES = [
-        ['name' => 'Starter Pack', 'coin_amount' => 100, 'price_usd' => 1.00, 'tone' => 'package-blue', 'sort_order' => 1],
-        ['name' => 'Growth Pack', 'coin_amount' => 250, 'price_usd' => 2.00, 'tone' => 'package-purple', 'sort_order' => 2],
-        ['name' => 'Pro Pack', 'coin_amount' => 500, 'price_usd' => 4.00, 'tone' => 'package-orange', 'sort_order' => 3],
-        ['name' => 'Enterprise Pack', 'coin_amount' => 1000, 'price_usd' => 7.00, 'tone' => 'package-green', 'sort_order' => 4],
+        ['name' => 'Starter Pack', 'coin_amount' => 100, 'price_usd' => 300.00, 'tone' => 'package-blue', 'sort_order' => 1],
+        ['name' => 'Growth Pack', 'coin_amount' => 250, 'price_usd' => 700.00, 'tone' => 'package-purple', 'sort_order' => 2],
+        ['name' => 'Pro Pack', 'coin_amount' => 500, 'price_usd' => 1300.00, 'tone' => 'package-orange', 'sort_order' => 3],
+        ['name' => 'Enterprise Pack', 'coin_amount' => 1000, 'price_usd' => 2500.00, 'tone' => 'package-green', 'sort_order' => 4],
     ];
 
     public static function ensureSchema(PDO $pdo): void
@@ -76,7 +76,7 @@ final class CoinPackageService
             'CREATE TABLE IF NOT EXISTS coin_settings (
                 id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
                 custom_recharge_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 0.01,
+                custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 3.00,
                 custom_coin_min INTEGER NOT NULL DEFAULT 50,
                 custom_coin_max INTEGER NOT NULL DEFAULT 100000,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -89,7 +89,7 @@ final class CoinPackageService
         if ($settingsCount === 0) {
             $pdo->exec(
                 'INSERT INTO coin_settings (id, custom_recharge_enabled, custom_coin_price_usd, custom_coin_min, custom_coin_max)
-                 VALUES (1, TRUE, 0.01, 50, 100000)'
+                 VALUES (1, TRUE, 3.00, 50, 100000)'
             );
         }
     }
@@ -122,7 +122,7 @@ final class CoinPackageService
     {
         $defaults = [
             'custom_recharge_enabled' => true,
-            'custom_coin_price_usd' => 0.01,
+            'custom_coin_price_usd' => 3.00,
             'custom_coin_min' => 50,
             'custom_coin_max' => 100000,
             'whatsapp_number' => '',
@@ -151,7 +151,7 @@ final class CoinPackageService
         self::ensureSettingsSchema($pdo);
 
         $enabled = isset($data['custom_recharge_enabled']) && (string) $data['custom_recharge_enabled'] !== '' && (string) $data['custom_recharge_enabled'] !== '0';
-        $pricePerCoin = round((float) ($data['custom_coin_price_usd'] ?? 0), 4);
+        $pricePerCoin = round((float) ($data['custom_coin_price_usd'] ?? 0), 2);
         $minCoins = (int) ($data['custom_coin_min'] ?? 0);
         $maxCoins = (int) ($data['custom_coin_max'] ?? 0);
 
@@ -224,7 +224,7 @@ final class CoinPackageService
     {
         return [
             'enabled' => db_bool($row['custom_recharge_enabled'] ?? false),
-            'pricePerCoin' => (float) ($row['custom_coin_price_usd'] ?? 0.01),
+            'pricePerCoin' => (float) ($row['custom_coin_price_usd'] ?? 3.00),
             'minCoins' => (int) ($row['custom_coin_min'] ?? 50),
             'maxCoins' => (int) ($row['custom_coin_max'] ?? 100000),
         ];

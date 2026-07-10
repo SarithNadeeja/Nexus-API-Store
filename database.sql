@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS coin_packages (
 CREATE TABLE IF NOT EXISTS coin_settings (
     id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     custom_recharge_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-    custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 0.01,
+    custom_coin_price_usd NUMERIC(10,4) NOT NULL DEFAULT 3.00,
     custom_coin_min INTEGER NOT NULL DEFAULT 50,
     custom_coin_max INTEGER NOT NULL DEFAULT 100000,
     whatsapp_number VARCHAR(20) NOT NULL DEFAULT '',
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS coin_settings (
 );
 
 INSERT INTO coin_settings (id, custom_recharge_enabled, custom_coin_price_usd, custom_coin_min, custom_coin_max, whatsapp_number)
-SELECT 1, TRUE, 0.01, 50, 100000, ''
+SELECT 1, TRUE, 3.00, 50, 100000, ''
 WHERE NOT EXISTS (SELECT 1 FROM coin_settings WHERE id = 1);
 
 CREATE TABLE IF NOT EXISTS app_users (

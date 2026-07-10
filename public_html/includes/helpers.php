@@ -130,3 +130,8 @@ function user_avatar_tone(int $index): string
 
     return $tones[$index % count($tones)];
 }
+
+function format_lkr($amount, int $decimals = 2): string
+{
+    return 'LKR ' . number_format((float) $amount, $decimals, '.', ',');
+}

@@ -77,6 +77,12 @@ try {
 } catch (InvalidArgumentException $e) {
     $status = str_contains($e->getMessage(), 'sign in') ? 401 : 400;
     json_error($e->getMessage(), $status);
+} catch (PDOException $e) {
+    $message = $e->getMessage();
+    if (str_contains($message, 'permission denied')) {
+        json_error('Database permission error. Run /fix-db-permissions.php once, then delete it.', 503);
+    }
+    json_error('Database error: ' . $message, 503);
 } catch (RuntimeException $e) {
     json_error($e->getMessage(), 503);
 }

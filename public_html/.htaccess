@@ -6,15 +6,7 @@ RewriteEngine On
 </FilesMatch>
 
 # API routes
-RewriteRule ^api/public/apis$ api/index.php [L,QSA]
-RewriteRule ^api/auth/register$ api/index.php [L,QSA]
-RewriteRule ^api/auth/resend-verification$ api/index.php [L,QSA]
-RewriteRule ^api/auth/login$ api/index.php [L,QSA]
-RewriteRule ^api/auth/logout$ api/index.php [L,QSA]
-RewriteRule ^api/auth/me$ api/index.php [L,QSA]
-RewriteRule ^api/auth/verify$ api/index.php [L,QSA]
-RewriteRule ^api/user/recharge$ api/index.php [L,QSA]
-RewriteRule ^api/user/purchases$ api/index.php [L,QSA]
+RewriteRule ^api/ api/index.php [L,QSA]
 
 # Google OAuth aliases
 RewriteRule ^oauth2/authorization/google$ oauth/google-start.php [L,QSA]

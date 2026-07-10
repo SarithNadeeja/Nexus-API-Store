@@ -24,6 +24,34 @@ function quotePgIdentifier(string $value): string
     return '"' . str_replace('"', '""', $value) . '"';
 }
 
+function pgTables(): array
+{
+    return [
+        'categories',
+        'api_listings',
+        'admin_users',
+        'app_users',
+        'coin_transactions',
+        'api_purchases',
+        'email_verification_tokens',
+    ];
+}
+
+function applyPostgresGrants(PDO $pdo, string $dbUser): void
+{
+    $quotedUser = quotePgIdentifier($dbUser);
+    $pdo->exec('GRANT USAGE ON SCHEMA public TO ' . $quotedUser);
+
+    foreach (pgTables() as $table) {
+        $quotedTable = quotePgIdentifier($table);
+        $pdo->exec('GRANT ALL PRIVILEGES ON TABLE ' . $quotedTable . ' TO ' . $quotedUser);
+        $pdo->exec('GRANT USAGE, SELECT, UPDATE ON SEQUENCE ' . quotePgIdentifier($table . '_id_seq') . ' TO ' . $quotedUser);
+    }
+
+    $pdo->exec('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ' . $quotedUser);
+    $pdo->exec('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ' . $quotedUser);
+}
+
 function ensurePostgresDatabase(array $db): void
 {
     $adminDb = $db['admin_database'] ?? 'postgres';
@@ -65,6 +93,10 @@ try {
         if ($statement !== '' && !str_starts_with($statement, '--')) {
             $pdo->exec($statement);
         }
+    }
+
+    if ($driver === 'pgsql') {
+        applyPostgresGrants($pdo, $config['db']['user']);
     }
 
     AdminService::ensureDefaultAdmin($pdo);

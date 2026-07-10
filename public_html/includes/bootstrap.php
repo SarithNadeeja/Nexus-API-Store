@@ -2,22 +2,17 @@
 
 declare(strict_types=1);
 
-$configPath = dirname(__DIR__) . '/config.php';
-if (!file_exists($configPath)) {
+require_once __DIR__ . '/ConfigLoader.php';
+
+try {
+    $config = load_app_config(dirname(__DIR__));
+} catch (Throwable $e) {
     http_response_code(500);
     header('Content-Type: application/json');
-    echo json_encode(['message' => 'Missing config.php. Copy config.sample.php to config.php and configure it.']);
+    echo json_encode(['message' => $e->getMessage()]);
     exit;
 }
 
-$config = require $configPath;
-$localConfigPath = dirname(__DIR__) . '/config.local.php';
-if (file_exists($localConfigPath)) {
-    $localConfig = require $localConfigPath;
-    if (is_array($localConfig)) {
-        $config = array_replace_recursive($config, $localConfig);
-    }
-}
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 
 if (session_status() === PHP_SESSION_NONE) {

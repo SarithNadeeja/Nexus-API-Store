@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Copy to config.local.php and fill in real values.
- * This file is loaded on top of config.php and is not committed to git.
+ * Copy to config.local.php on the server and fill in real values.
+ * Works with config.sample.php when config.php is not present.
  */
 return [
     'db' => [

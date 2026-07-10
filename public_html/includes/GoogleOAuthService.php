@@ -51,7 +51,7 @@ final class GoogleOAuthService
     public static function ensureConfigured(array $config): void
     {
         if (!self::isConfigured($config)) {
-            throw new RuntimeException('Google sign-in is not configured yet. Add your OAuth client secret in config.php.');
+            throw new RuntimeException('Google sign-in is not configured yet. Add your OAuth credentials in config.local.php.');
         }
     }
 

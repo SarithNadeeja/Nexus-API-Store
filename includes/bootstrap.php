@@ -2,34 +2,23 @@
 
 declare(strict_types=1);
 
-$configPath = dirname(__DIR__) . '/config.php';
+/**
+ * Legacy bootstrap for non-public_html tooling. Prefer public_html/includes/bootstrap.php.
+ */
+$publicHtml = dirname(__DIR__) . '/public_html';
+$configPath = $publicHtml . '/config.php';
+
 if (!file_exists($configPath)) {
     http_response_code(500);
     header('Content-Type: application/json');
-    echo json_encode(['message' => 'Missing config.php. Copy config.sample.php to config.php and configure it.']);
+    echo json_encode(['message' => 'Missing public_html/config.php. Pull latest code or copy config.sample.php to config.php.']);
     exit;
 }
 
 $config = require $configPath;
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_name($config['session']['name'] ?? 'NEXUSSESSID');
-    session_set_cookie_params([
-        'lifetime' => $config['session']['lifetime'] ?? 86400,
-        'path' => '/',
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
-    session_start();
-}
-
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/Auth.php';
-require_once __DIR__ . '/Mailer.php';
-require_once __DIR__ . '/UserService.php';
-require_once __DIR__ . '/AdminService.php';
-require_once __DIR__ . '/VerificationService.php';
 
 $pdo = Database::connect($config['db']);

@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * Copy to config.local.php and fill in real values.
+ * This file is loaded on top of config.php and is not committed to git.
+ */
+return [
+    'db' => [
+        'pass' => 'your_database_password',
+    ],
+    'mail' => [
+        'smtp_pass' => 'your-gmail-app-password',
+    ],
+    'google' => [
+        'client_id' => 'your-google-client-id.apps.googleusercontent.com',
+        'client_secret' => 'your-google-client-secret',
+    ],
+];

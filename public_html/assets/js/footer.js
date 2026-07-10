@@ -48,13 +48,16 @@ function renderFooter() {
         `).join('')}
       </div>
       <div class="footer-bottom">
-        <p>&copy; 2026 Nexus API Store. All rights reserved.</p>
+        <p>&copy; 2026 Nexus API Store by Sasinda. All rights reserved.</p>
         <div class="footer-bottom-links">
           <a href="#">Terms</a>
           <a href="#">Privacy</a>
           <a href="/index.html#security">Security</a>
         </div>
       </div>
+      <p class="footer-powered">
+        Website Powered by <a href="https://infersioai.com" target="_blank" rel="noopener noreferrer">infersioai.com</a>
+      </p>
     </div>`;
 }
 

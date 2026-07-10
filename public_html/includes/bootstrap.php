@@ -11,6 +11,13 @@ if (!file_exists($configPath)) {
 }
 
 $config = require $configPath;
+$localConfigPath = dirname(__DIR__) . '/config.local.php';
+if (file_exists($localConfigPath)) {
+    $localConfig = require $localConfigPath;
+    if (is_array($localConfig)) {
+        $config = array_replace_recursive($config, $localConfig);
+    }
+}
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 
 if (session_status() === PHP_SESSION_NONE) {

@@ -2,13 +2,23 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/ConfigLoader.php';
+require_once __DIR__ . '/load-config.php';
+
+function bootstrap_require(string $file): void
+{
+    $path = __DIR__ . '/' . $file;
+    if (!is_readable($path)) {
+        throw new RuntimeException('Missing required server file: includes/' . $file);
+    }
+
+    require_once $path;
+}
 
 try {
     $config = load_app_config(dirname(__DIR__));
 } catch (Throwable $e) {
     http_response_code(500);
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['message' => $e->getMessage()]);
     exit;
 }
@@ -26,23 +36,29 @@ if (session_status() === PHP_SESSION_NONE) {
     @session_start();
 }
 
-require_once __DIR__ . '/Database.php';
-require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/Auth.php';
-require_once __DIR__ . '/Mailer.php';
-require_once __DIR__ . '/UserService.php';
-require_once __DIR__ . '/AdminService.php';
-require_once __DIR__ . '/CoinPackageService.php';
-require_once __DIR__ . '/ApiKeyPoolService.php';
-require_once __DIR__ . '/GoogleOAuthService.php';
-require_once __DIR__ . '/VerificationService.php';
+try {
+    bootstrap_require('Database.php');
+    bootstrap_require('helpers.php');
+    bootstrap_require('Auth.php');
+    bootstrap_require('Mailer.php');
+    bootstrap_require('UserService.php');
+    bootstrap_require('AdminService.php');
+    bootstrap_require('CoinPackageService.php');
+    bootstrap_require('ApiKeyPoolService.php');
+    bootstrap_require('VerificationService.php');
+} catch (Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['message' => $e->getMessage()]);
+    exit;
+}
 
 try {
     $pdo = Database::connect($config['db']);
 } catch (Throwable $e) {
     error_log('Database connection failed: ' . $e->getMessage());
     http_response_code(503);
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['message' => 'Database connection failed. Check config.php and database service.']);
     exit;
 }

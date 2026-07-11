@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class ApiKeyPoolService
 {
     public const POOL_MARKER = '__pool__';
+    public const MAX_SNIPPET_LENGTH = 10000;
 
     public static function ensureSchema(PDO $pdo): void
     {
@@ -16,7 +17,7 @@ final class ApiKeyPoolService
             'CREATE TABLE IF NOT EXISTS api_key_inventory (
                 id BIGSERIAL PRIMARY KEY,
                 api_listing_id BIGINT NOT NULL,
-                key_link VARCHAR(500) NOT NULL,
+                key_link TEXT NOT NULL,
                 status VARCHAR(20) NOT NULL DEFAULT \'AVAILABLE\',
                 assigned_user_id BIGINT NULL,
                 api_purchase_id BIGINT NULL,
@@ -131,8 +132,6 @@ final class ApiKeyPoolService
                 ->execute([self::POOL_MARKER, $listingId]);
         }
     }
-
-    public const MAX_SNIPPET_LENGTH = 10000;
 
     public static function parseBulkSnippets(string $raw): array
     {

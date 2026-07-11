@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class Mailer
 {
-    private static ?string $lastError = null;
+    private static $lastError = null;
 
     public static function getLastError(): ?string
     {

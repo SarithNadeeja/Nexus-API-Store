@@ -32,7 +32,7 @@ health_check($checks, 'php', static function () {
 });
 
 health_check($checks, 'config', static function () {
-    require_once __DIR__ . '/includes/ConfigLoader.php';
+    require_once __DIR__ . '/includes/load-config.php';
     $config = load_app_config(__DIR__);
 
     return [
@@ -51,7 +51,6 @@ health_check($checks, 'includes', static function () {
         'AdminService.php',
         'CoinPackageService.php',
         'ApiKeyPoolService.php',
-        'GoogleOAuthService.php',
         'VerificationService.php',
     ];
 
@@ -67,7 +66,7 @@ health_check($checks, 'includes', static function () {
 });
 
 health_check($checks, 'database', static function () {
-    require_once __DIR__ . '/includes/ConfigLoader.php';
+    require_once __DIR__ . '/includes/load-config.php';
     require_once __DIR__ . '/includes/Database.php';
     $config = load_app_config(__DIR__);
     $pdo = Database::connect($config['db']);
@@ -77,7 +76,7 @@ health_check($checks, 'database', static function () {
 });
 
 health_check($checks, 'tables', static function () {
-    require_once __DIR__ . '/includes/ConfigLoader.php';
+    require_once __DIR__ . '/includes/load-config.php';
     require_once __DIR__ . '/includes/Database.php';
     $config = load_app_config(__DIR__);
     $pdo = Database::connect($config['db']);

@@ -536,7 +536,7 @@ $username = Auth::adminUsername();
                 <div class="panel-title-row" style="margin-bottom:1rem;">
                     <div>
                         <h4 id="api-form-title"><?= $editApi ? 'Update API Listing' : 'Add API Listing' ?></h4>
-                        <p class="muted" style="margin:0.35rem 0 0;">One listing name and category can hold many unique API key links. Each purchased key expires after the selected number of months.</p>
+                        <p class="muted" style="margin:0.35rem 0 0;">One listing name and category can hold many unique code snippets. Each purchased key expires after the selected number of months.</p>
                     </div>
                     <?php if ($editApi): ?>
                         <a class="btn btn-secondary btn-sm" href="?section=apis">Add New Listing</a>
@@ -566,10 +566,10 @@ $username = Auth::adminUsername();
                     <span class="field-hint full-span">Each sold API key will expire this many months after a customer purchases it.</span>
                     <label class="full-span">Description<textarea name="description" id="api-description" rows="3"><?= $editApi ? h($editApi['description'] ?? '') : '' ?></textarea></label>
                     <label class="full-span">
-                        <?= $editApi ? 'Add More API Key Links' : 'API Key Links' ?>
-                        <textarea name="bulk_key_links" id="api-bulk-keys" rows="12" placeholder="https://ex-api.nexus.dev/key-001&#10;https://ex-api.nexus.dev/key-002&#10;https://ex-api.nexus.dev/key-003"></textarea>
-                        <span class="field-hint">Paste one unique link per line. You can upload 100+ links for the same listing name and category. Lines starting with # are ignored.</span>
-                        <span class="field-hint" id="api-bulk-count">0 links ready to upload</span>
+                        <?= $editApi ? 'Add More Code Snippets' : 'Code Snippets' ?>
+                        <textarea name="bulk_key_links" id="api-bulk-keys" rows="12" placeholder="const API_KEY = 'sk_live_abc123';&#10;curl -H &quot;Authorization: Bearer token_here&quot; https://api.example.com/v1/resource&#10;&#10;---&#10;&#10;fetch('https://api.example.com', {&#10;  headers: { Authorization: 'Bearer token_here' }&#10;});"></textarea>
+                        <span class="field-hint">Paste one code snippet per line, or separate multiline snippets with a line containing only <code>---</code>. Lines starting with # are ignored.</span>
+                        <span class="field-hint" id="api-bulk-count">0 snippets ready to upload</span>
                     </label>
                     <?php if ($editApi): ?>
                         <div class="full-span key-pool-stats">
@@ -626,7 +626,7 @@ $username = Auth::adminUsername();
                                         data-assigned="<?= (int) ($api['key_assigned'] ?? 0) ?>"
                                         data-total="<?= (int) ($api['key_total'] ?? 0) ?>"
                                     >✎</button>
-                                    <form method="post" class="inline-form" onsubmit="return confirm('Delete this API listing and all key links?')">
+                                    <form method="post" class="inline-form" onsubmit="return confirm('Delete this API listing and all code snippets?')">
                                         <input type="hidden" name="action" value="delete_api">
                                         <input type="hidden" name="return_section" value="apis">
                                         <input type="hidden" name="id" value="<?= (int) $api['id'] ?>">
@@ -638,7 +638,7 @@ $username = Auth::adminUsername();
                     <?php endforeach; ?>
                     <?php if (!$apis): ?>
                         <tr>
-                            <td colspan="8" class="empty-copy">No API listings yet. Create one above and paste your key links.</td>
+                            <td colspan="8" class="empty-copy">No API listings yet. Create one above and paste your code snippets.</td>
                         </tr>
                     <?php endif; ?>
                     </tbody>

@@ -8,20 +8,23 @@ function formatCoins(value) {
   return Number(value || 0).toLocaleString();
 }
 
-function downloadApiKeysTxt(apiName, keys) {
-  const safeName = String(apiName || 'api_keys').replace(/[^a-z0-9_-]+/gi, '_').replace(/_+/g, '_');
+function downloadCodeSnippetsTxt(apiName, snippets) {
+  const safeName = String(apiName || 'api_snippets').replace(/[^a-z0-9_-]+/gi, '_').replace(/_+/g, '_');
   const header = [
     `# ${apiName}`,
     `# Purchased: ${new Date().toLocaleString()}`,
-    `# Total keys: ${keys.length}`,
+    `# Total snippets: ${snippets.length}`,
     '',
   ].join('\n');
-  const content = `${header}${keys.join('\n')}\n`;
+  const body = snippets.map((snippet, index) => (
+    snippets.length > 1 ? `# Snippet ${index + 1}\n${snippet}` : snippet
+  )).join('\n\n---\n\n');
+  const content = `${header}${body}\n`;
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${safeName}_api_keys.txt`;
+  link.download = `${safeName}_code_snippets.txt`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -52,11 +55,11 @@ function showBulkPurchaseSuccess(result) {
         </p>
         ${quantity > 1 ? `
           <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
-            Download ${quantity} API Links (.txt)
+            Download ${quantity} Code Snippets (.txt)
           </button>
         ` : `
           <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
-            Download API Link (.txt)
+            Download Code Snippet (.txt)
           </button>
         `}
         <a class="btn btn-secondary btn-sm" href="/dashboard.html#my-api-keys">View in Dashboard</a>
@@ -71,7 +74,7 @@ function showBulkPurchaseSuccess(result) {
   });
 
   overlay.querySelector('#bulk-download-keys-btn')?.addEventListener('click', () => {
-    downloadApiKeysTxt(result.apiName, keys);
+    downloadCodeSnippetsTxt(result.apiName, keys);
   });
 }
 
@@ -275,7 +278,7 @@ async function renderMarketplace(containerId, options = {}) {
         </div>
         <div class="endpoint-box">
           <div class="endpoint-title">◎ Secure delivery after purchase</div>
-          <div class="endpoint-url">Buy one or many keys at once. Bulk purchases can be downloaded as a .txt file.</div>
+          <div class="endpoint-url">Buy one or many keys at once. Bulk purchases can be downloaded as a .txt file of code snippets.</div>
         </div>
         <div class="card-actions">
           ${renderMarketplaceActions(api)}

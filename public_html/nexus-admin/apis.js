@@ -20,17 +20,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentPage = 1;
 
-  function countBulkLinks(value) {
-    return value
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#')).length;
+  function countBulkSnippets(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 0;
+
+    const chunks = /\r?\n---\r?\n/.test(raw)
+      ? raw.split(/\r?\n---\r?\n/)
+      : raw.split(/\r?\n/);
+
+    return chunks
+      .map((chunk) => chunk.trim())
+      .filter((chunk) => chunk && !chunk.startsWith('#')).length;
   }
 
   function updateBulkCount() {
     if (!bulkCount || !bulkInput) return;
-    const count = countBulkLinks(bulkInput.value);
-    bulkCount.textContent = count === 1 ? '1 link ready to upload' : `${count} links ready to upload`;
+    const count = countBulkSnippets(bulkInput.value);
+    bulkCount.textContent = count === 1 ? '1 snippet ready to upload' : `${count} snippets ready to upload`;
   }
 
   function resetForm() {
@@ -108,10 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', (event) => {
     const isEdit = Boolean(idInput?.value);
-    const bulkCountValue = countBulkLinks(bulkInput?.value || '');
+    const bulkCountValue = countBulkSnippets(bulkInput?.value || '');
     if (!isEdit && bulkCountValue === 0) {
       event.preventDefault();
-      alert('Paste at least one API key link (one per line).');
+      alert('Paste at least one code snippet.');
       bulkInput?.focus();
     }
   });

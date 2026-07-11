@@ -40,7 +40,7 @@ $logout = isset($_GET['logout']);
     <div class="login-card">
         <div class="login-badge">Admin Panel</div>
         <h1>Nexus API Store</h1>
-        <p>Sign in to manage categories, API links, API keys, and admin accounts.</p>
+        <p>Sign in to manage categories, API listings, code snippets, and admin accounts.</p>
 
         <?php if ($logout): ?><div class="alert success">You have been signed out.</div><?php endif; ?>
         <?php if ($error): ?><div class="alert error">Invalid username or password.</div><?php endif; ?>

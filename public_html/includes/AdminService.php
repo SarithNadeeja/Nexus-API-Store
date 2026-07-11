@@ -215,10 +215,10 @@ final class AdminService
         }
 
         $bulkRaw = trim((string) ($data['bulk_key_links'] ?? ''));
-        $bulkLinks = $bulkRaw !== '' ? ApiKeyPoolService::parseBulkLinks($bulkRaw) : [];
+        $bulkSnippets = $bulkRaw !== '' ? ApiKeyPoolService::parseBulkSnippets($bulkRaw) : [];
 
-        if (!$id && !$bulkLinks) {
-            throw new InvalidArgumentException('Add at least one API key link (one per line).');
+        if (!$id && !$bulkSnippets) {
+            throw new InvalidArgumentException('Add at least one code snippet.');
         }
 
         $placeholderLink = '';
@@ -240,18 +240,18 @@ final class AdminService
                 'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=?, expiration_months=? WHERE id=?'
             )->execute($payload);
 
-            $keysAdded = $bulkLinks ? ApiKeyPoolService::addKeys($pdo, $id, $bulkLinks) : 0;
+            $keysAdded = $bulkSnippets ? ApiKeyPoolService::addKeys($pdo, $id, $bulkSnippets) : 0;
             $counts = ApiKeyPoolService::countsForListing($pdo, $id);
             if ($counts['total'] === 0) {
-                throw new InvalidArgumentException('This listing has no API key links. Paste links in the bulk field.');
+                throw new InvalidArgumentException('This listing has no code snippets. Paste snippets in the bulk field.');
             }
 
             $message = 'API listing updated.';
             if ($keysAdded > 0) {
-                $skipped = count($bulkLinks) - $keysAdded;
-                $message = "Added {$keysAdded} new API key link" . ($keysAdded === 1 ? '' : 's') . '.';
+                $skipped = count($bulkSnippets) - $keysAdded;
+                $message = "Added {$keysAdded} new code snippet" . ($keysAdded === 1 ? '' : 's') . '.';
                 if ($skipped > 0) {
-                    $message .= " {$skipped} duplicate link" . ($skipped === 1 ? ' was' : 's were') . ' skipped.';
+                    $message .= " {$skipped} duplicate snippet" . ($skipped === 1 ? ' was' : 's were') . ' skipped.';
                 }
             }
 
@@ -264,12 +264,12 @@ final class AdminService
         )->execute($payload);
 
         $listingId = Database::lastInsertId($pdo, 'api_listings');
-        $keysAdded = ApiKeyPoolService::addKeys($pdo, $listingId, $bulkLinks);
+        $keysAdded = ApiKeyPoolService::addKeys($pdo, $listingId, $bulkSnippets);
 
         return [
             'listingId' => $listingId,
             'keysAdded' => $keysAdded,
-            'message' => "API listing created with {$keysAdded} API key link" . ($keysAdded === 1 ? '' : 's') . '.',
+            'message' => "API listing created with {$keysAdded} code snippet" . ($keysAdded === 1 ? '' : 's') . '.',
         ];
     }
 

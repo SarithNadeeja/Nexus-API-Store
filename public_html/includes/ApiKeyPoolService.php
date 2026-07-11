@@ -31,9 +31,21 @@ final class ApiKeyPoolService
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status)');
 
         try {
-            $pdo->exec('ALTER TABLE api_purchases ALTER COLUMN purchased_key_snapshot TYPE VARCHAR(500)');
+            $pdo->exec('ALTER TABLE api_purchases ALTER COLUMN purchased_key_snapshot TYPE TEXT');
         } catch (Throwable $e) {
-            // Column may already be wide enough.
+            // Column may already be TEXT.
+        }
+
+        try {
+            $pdo->exec('ALTER TABLE api_purchases ALTER COLUMN access_link_snapshot TYPE TEXT');
+        } catch (Throwable $e) {
+            // Column may already be TEXT.
+        }
+
+        try {
+            $pdo->exec('ALTER TABLE api_key_inventory ALTER COLUMN key_link TYPE TEXT');
+        } catch (Throwable $e) {
+            // Column may already be TEXT.
         }
 
         try {
@@ -116,31 +128,45 @@ final class ApiKeyPoolService
         }
     }
 
-    public static function parseBulkLinks(string $raw): array
-    {
-        $lines = preg_split('/\r\n|\r|\n/', $raw) ?: [];
-        $links = [];
+    public const MAX_SNIPPET_LENGTH = 10000;
 
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) {
-                continue;
-            }
-            if (!preg_match('#^https?://#i', $line)) {
-                throw new InvalidArgumentException('Each API key link must start with http:// or https://');
-            }
-            if (strlen($line) > 500) {
-                throw new InvalidArgumentException('API key links must be 500 characters or fewer.');
-            }
-            $links[] = $line;
+    public static function parseBulkSnippets(string $raw): array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            throw new InvalidArgumentException('Add at least one code snippet.');
         }
 
-        $unique = array_values(array_unique($links));
+        $chunks = preg_match('/\R---\R/', $raw)
+            ? preg_split('/\R---\R/', $raw) ?: []
+            : preg_split('/\r\n|\r|\n/', $raw) ?: [];
+
+        $snippets = [];
+        foreach ($chunks as $chunk) {
+            $snippet = trim($chunk);
+            if ($snippet === '' || str_starts_with($snippet, '#')) {
+                continue;
+            }
+            if (strlen($snippet) > self::MAX_SNIPPET_LENGTH) {
+                throw new InvalidArgumentException(
+                    'Each code snippet must be ' . self::MAX_SNIPPET_LENGTH . ' characters or fewer.'
+                );
+            }
+            $snippets[] = $snippet;
+        }
+
+        $unique = array_values(array_unique($snippets));
         if (!$unique) {
-            throw new InvalidArgumentException('Add at least one API key link (one per line).');
+            throw new InvalidArgumentException('Add at least one code snippet.');
         }
 
         return $unique;
+    }
+
+    /** @deprecated Use parseBulkSnippets() */
+    public static function parseBulkLinks(string $raw): array
+    {
+        return self::parseBulkSnippets($raw);
     }
 
     public static function addKeys(PDO $pdo, int $listingId, array $links): int

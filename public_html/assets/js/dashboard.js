@@ -208,11 +208,16 @@ function canRecharge() {
   return Boolean(getSelectedPackage());
 }
 
-function maskApiKey(value, visible) {
+function getPurchaseSnippet(purchase) {
+  return purchase.codeSnippet || purchase.purchasedKey || purchase.accessLink || '';
+}
+
+function maskCodeSnippet(value, visible) {
   if (!value) return '••••••••••••••••';
   if (visible) return value;
-  if (value.length <= 16) return '•'.repeat(value.length);
-  return `${value.slice(0, 8)}${'•'.repeat(Math.min(value.length - 12, 24))}${value.slice(-4)}`;
+  const preview = value.split('\n')[0];
+  if (preview.length <= 16) return '•'.repeat(Math.max(preview.length, 12));
+  return `${preview.slice(0, 8)}${'•'.repeat(Math.min(preview.length - 12, 24))}${preview.slice(-4)}`;
 }
 
 function formatExpiryLabel(purchase) {
@@ -268,7 +273,7 @@ function renderPurchasedApis(purchases) {
     return `
       <div class="wallet-activity-empty">
         <span>🔑</span>
-        <p>No API keys yet. Buy an API from the marketplace to unlock your private access link.</p>
+        <p>No API keys yet. Buy an API from the marketplace to unlock your private code snippet.</p>
         <a class="btn btn-secondary btn-sm" href="/api-keys.html">Browse APIs</a>
       </div>
     `;
@@ -286,13 +291,13 @@ function renderPurchasedApis(purchases) {
             <th>Status</th>
             <th>Expires</th>
             <th>Coins</th>
-            <th>Your API Link</th>
+            <th>Code Snippet</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           ${visiblePurchases.map((purchase, index) => {
-            const apiLink = purchase.purchasedKey || purchase.accessLink || '';
+            const snippet = getPurchaseSnippet(purchase);
             const expired = Boolean(purchase.isExpired);
             const expiry = formatExpiryLabel(purchase);
             return `
@@ -307,14 +312,13 @@ function renderPurchasedApis(purchases) {
                   <span class="wallet-expiry-meta">${escapeHtml(expiry.secondary)}</span>
                 </td>
                 <td data-label="Coins">${Number(purchase.coinsSpent).toLocaleString()}</td>
-                <td data-label="Your API Link">
-                  <div class="key-field wallet-api-key-field" data-api-key-value="${escapeHtml(apiLink)}">${escapeHtml(maskApiKey(apiLink, false))}</div>
+                <td data-label="Code Snippet">
+                  <pre class="key-field wallet-api-key-field wallet-code-snippet" data-snippet-index="${index}">${escapeHtml(maskCodeSnippet(snippet, false))}</pre>
                 </td>
                 <td data-label="Actions">
                   <div class="wallet-api-key-actions">
                     <button class="btn btn-secondary btn-sm" type="button" data-toggle-api-key="${index}" ${expired ? 'disabled' : ''}>Show</button>
                     <button class="btn btn-primary btn-sm" type="button" data-copy-api-key="${index}" ${expired ? 'disabled' : ''}>Copy</button>
-                    ${apiLink && !expired ? `<a class="btn btn-secondary btn-sm" href="${escapeHtml(apiLink)}" target="_blank" rel="noreferrer">Open</a>` : ''}
                   </div>
                 </td>
               </tr>
@@ -344,29 +348,29 @@ function bindPurchasedApiKeys(purchases) {
 
   document.querySelectorAll('[data-toggle-api-key]').forEach((button) => {
     button.addEventListener('click', () => {
-      const index = button.dataset.toggleApiKey;
+      const index = Number(button.dataset.toggleApiKey);
+      const purchase = purchases[index];
       const row = document.querySelector(`[data-api-key-row="${index}"]`);
-      const field = row?.querySelector('[data-api-key-value]');
-      const value = field?.dataset.apiKeyValue || '';
+      const field = row?.querySelector('[data-snippet-index]');
+      const value = getPurchaseSnippet(purchase);
       const nextVisible = !visibility.get(index);
       visibility.set(index, nextVisible);
-      if (field) field.textContent = maskApiKey(value, nextVisible);
+      if (field) field.textContent = maskCodeSnippet(value, nextVisible);
       button.textContent = nextVisible ? 'Hide' : 'Show';
     });
   });
 
   document.querySelectorAll('[data-copy-api-key]').forEach((button) => {
     button.addEventListener('click', async () => {
-      const index = button.dataset.copyApiKey;
-      const row = document.querySelector(`[data-api-key-row="${index}"]`);
-      const value = row?.querySelector('[data-api-key-value]')?.dataset.apiKeyValue || '';
+      const index = Number(button.dataset.copyApiKey);
+      const value = getPurchaseSnippet(purchases[index]);
       if (!value) return;
       try {
         await navigator.clipboard.writeText(value);
         button.textContent = 'Copied';
         setTimeout(() => { button.textContent = 'Copy'; }, 1200);
       } catch (_) {
-        alert('Could not copy the API link. Please copy it manually.');
+        alert('Could not copy the code snippet. Please copy it manually.');
       }
     });
   });
@@ -506,7 +510,7 @@ function renderDashboard() {
       <div class="wallet-activity-head">
         <div>
           <h2>🔑 My Purchased API Keys</h2>
-          <p>View your bought API history with expiry time and active or expired status.</p>
+          <p>View your bought API history with expiry time, code snippets, and active or expired status.</p>
         </div>
         <button class="wallet-view-all" id="refresh-api-keys-btn" type="button" ${purchasesLoading ? 'disabled' : ''}>
           ${purchasesLoading ? 'Refreshing...' : 'Refresh'} <span>↻</span>

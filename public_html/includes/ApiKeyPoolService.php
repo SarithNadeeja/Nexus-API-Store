@@ -13,76 +13,41 @@ final class ApiKeyPoolService
             return;
         }
 
-        $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS api_key_inventory (
-                id BIGSERIAL PRIMARY KEY,
-                api_listing_id BIGINT NOT NULL,
-                key_link TEXT NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT \'AVAILABLE\',
-                assigned_user_id BIGINT NULL,
-                api_purchase_id BIGINT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                assigned_at TIMESTAMP NULL,
-                CONSTRAINT fk_api_key_inventory_listing FOREIGN KEY (api_listing_id) REFERENCES api_listings(id) ON DELETE CASCADE,
-                CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id),
-                CONSTRAINT uk_api_key_inventory_link UNIQUE (key_link)
-            )'
-        );
-
-        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status)');
-
-        try {
-            $pdo->exec('ALTER TABLE api_purchases ALTER COLUMN purchased_key_snapshot TYPE TEXT');
-        } catch (Throwable $e) {
-            // Column may already be TEXT.
-        }
-
-        try {
-            $pdo->exec('ALTER TABLE api_purchases ALTER COLUMN access_link_snapshot TYPE TEXT');
-        } catch (Throwable $e) {
-            // Column may already be TEXT.
-        }
-
-        try {
-            $pdo->exec('ALTER TABLE api_key_inventory ALTER COLUMN key_link TYPE TEXT');
-        } catch (Throwable $e) {
-            // Column may already be TEXT.
-        }
-
-        try {
-            $pdo->exec('ALTER TABLE api_listings ADD COLUMN IF NOT EXISTS expiration_months INTEGER NOT NULL DEFAULT 1');
-        } catch (Throwable $e) {
-            // Column may already exist.
-        }
-
-        try {
-            $pdo->exec('ALTER TABLE api_purchases ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP NULL');
-        } catch (Throwable $e) {
-            // Column may already exist.
-        }
-
-        try {
-            $pdo->exec('ALTER TABLE api_purchases DROP CONSTRAINT IF EXISTS uk_api_purchases_user_api');
-        } catch (Throwable $e) {
-            // Constraint may already be removed.
-        }
-
         try {
             $pdo->exec(
-                "UPDATE api_purchases p
-                 SET expires_at = p.created_at + (COALESCE(a.expiration_months, 1) || ' months')::interval
-                 FROM api_listings a
-                 WHERE p.api_listing_id = a.id AND p.expires_at IS NULL"
+                'CREATE TABLE IF NOT EXISTS api_key_inventory (
+                    id BIGSERIAL PRIMARY KEY,
+                    api_listing_id BIGINT NOT NULL,
+                    key_link TEXT NOT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT \'AVAILABLE\',
+                    assigned_user_id BIGINT NULL,
+                    api_purchase_id BIGINT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    assigned_at TIMESTAMP NULL,
+                    CONSTRAINT fk_api_key_inventory_listing FOREIGN KEY (api_listing_id) REFERENCES api_listings(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id),
+                    CONSTRAINT uk_api_key_inventory_link UNIQUE (key_link)
+                )'
             );
+            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status)');
         } catch (Throwable $e) {
-            // Backfill is best-effort for legacy rows.
+            error_log('ApiKeyPoolService table setup failed: ' . $e->getMessage());
         }
 
-        try {
-            $pdo->exec("DELETE FROM api_key_inventory WHERE status = 'ASSIGNED'");
-        } catch (Throwable $e) {
-            // Pool may not exist yet on first run.
-        }
+        self::runMigration($pdo, 'ALTER TABLE api_purchases ALTER COLUMN purchased_key_snapshot TYPE TEXT');
+        self::runMigration($pdo, 'ALTER TABLE api_purchases ALTER COLUMN access_link_snapshot TYPE TEXT');
+        self::runMigration($pdo, 'ALTER TABLE api_key_inventory ALTER COLUMN key_link TYPE TEXT');
+        self::runMigration($pdo, 'ALTER TABLE api_listings ADD COLUMN IF NOT EXISTS expiration_months INTEGER NOT NULL DEFAULT 1');
+        self::runMigration($pdo, 'ALTER TABLE api_purchases ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP NULL');
+        self::runMigration($pdo, 'ALTER TABLE api_purchases DROP CONSTRAINT IF EXISTS uk_api_purchases_user_api');
+        self::runMigration(
+            $pdo,
+            "UPDATE api_purchases p
+             SET expires_at = p.created_at + (COALESCE(a.expiration_months, 1) || ' months')::interval
+             FROM api_listings a
+             WHERE p.api_listing_id = a.id AND p.expires_at IS NULL"
+        );
+        self::runMigration($pdo, "DELETE FROM api_key_inventory WHERE status = 'ASSIGNED'");
 
         try {
             self::migrateLegacyListingKeys($pdo);
@@ -91,14 +56,24 @@ final class ApiKeyPoolService
         }
     }
 
+    private static function runMigration(PDO $pdo, string $sql): void
+    {
+        try {
+            $pdo->exec($sql);
+        } catch (Throwable $e) {
+            // Best-effort migration.
+        }
+    }
+
     private static function migrateLegacyListingKeys(PDO $pdo): void
     {
+        $marker = self::POOL_MARKER;
         $stmt = $pdo->query(
             "SELECT a.id, a.api_key_value
              FROM api_listings a
              WHERE a.api_key_value IS NOT NULL
                AND a.api_key_value <> ''
-               AND a.api_key_value <> '" . self::POOL_MARKER . "'"
+               AND a.api_key_value <> '{$marker}'"
         );
 
         $check = $pdo->prepare('SELECT id FROM api_key_inventory WHERE api_listing_id = ? LIMIT 1');
@@ -122,14 +97,13 @@ final class ApiKeyPoolService
 
             if ($purchaseRow) {
                 $pdo->prepare('UPDATE api_listings SET api_key_value = ? WHERE id = ?')
-                    ->execute([self::POOL_MARKER, $listingId]);
+                    ->execute([$marker, $listingId]);
                 continue;
             }
 
             $insert->execute([$listingId, $row['api_key_value']]);
-
             $pdo->prepare('UPDATE api_listings SET api_key_value = ? WHERE id = ?')
-                ->execute([self::POOL_MARKER, $listingId]);
+                ->execute([$marker, $listingId]);
         }
     }
 
@@ -140,13 +114,13 @@ final class ApiKeyPoolService
             throw new InvalidArgumentException('Add at least one code snippet.');
         }
 
-        $chunks = preg_match('/\R---\R/', $raw)
-            ? preg_split('/\R---\R/', $raw) ?: []
+        $chunks = preg_match('/(\r\n|\r|\n)---(\r\n|\r|\n)/', $raw)
+            ? preg_split('/(\r\n|\r|\n)---(\r\n|\r|\n)/', $raw) ?: []
             : preg_split('/\r\n|\r|\n/', $raw) ?: [];
 
         $snippets = [];
         foreach ($chunks as $chunk) {
-            $snippet = trim($chunk);
+            $snippet = trim((string) $chunk);
             if ($snippet === '' || str_starts_with($snippet, '#')) {
                 continue;
             }
@@ -159,7 +133,7 @@ final class ApiKeyPoolService
         }
 
         $unique = array_values(array_unique($snippets));
-        if (!$unique) {
+        if ($unique === []) {
             throw new InvalidArgumentException('Add at least one code snippet.');
         }
 

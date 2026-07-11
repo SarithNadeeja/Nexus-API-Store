@@ -89,9 +89,9 @@ $editApi = null;
 $editApiKeyCounts = ['total' => 0, 'available' => 0, 'assigned' => 0];
 
 if ($section === 'apis') {
-    ApiKeyPoolService::ensureSchema($pdo);
+    KeyPool::ensureSchema($pdo);
     foreach ($apis as &$apiRow) {
-        $counts = ApiKeyPoolService::countsForListing($pdo, (int) $apiRow['id']);
+        $counts = KeyPool::countsForListing($pdo, (int) $apiRow['id']);
         $apiRow['key_total'] = $counts['total'];
         $apiRow['key_available'] = $counts['available'];
         $apiRow['key_assigned'] = $counts['sold'];

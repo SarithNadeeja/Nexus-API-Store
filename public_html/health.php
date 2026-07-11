@@ -50,7 +50,7 @@ health_check($checks, 'includes', static function () {
         'UserService.php',
         'AdminService.php',
         'CoinPackageService.php',
-        'ApiKeyPoolService.php',
+        'KeyPool.php',
         'VerificationService.php',
     ];
 

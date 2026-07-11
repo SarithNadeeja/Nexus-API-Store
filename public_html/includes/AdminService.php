@@ -190,7 +190,7 @@ final class AdminService
 
     public static function saveApi(PDO $pdo, array $data): array
     {
-        ApiKeyPoolService::ensureSchema($pdo);
+        KeyPool::ensureSchema($pdo);
 
         $required = ['name', 'status', 'category_id', 'price_coins', 'expiration_months'];
         foreach ($required as $field) {
@@ -215,7 +215,7 @@ final class AdminService
         }
 
         $bulkRaw = trim((string) ($data['bulk_key_links'] ?? ''));
-        $bulkSnippets = $bulkRaw !== '' ? ApiKeyPoolService::parseBulkSnippets($bulkRaw) : [];
+        $bulkSnippets = $bulkRaw !== '' ? KeyPool::parseBulkSnippets($bulkRaw) : [];
 
         if (!$id && !$bulkSnippets) {
             throw new InvalidArgumentException('Add at least one code snippet.');
@@ -227,7 +227,7 @@ final class AdminService
             trim((string) ($data['description'] ?? '')),
             $placeholderLink,
             $placeholderLink,
-            ApiKeyPoolService::POOL_MARKER,
+            KeyPool::POOL_MARKER,
             trim((string) $data['status']),
             (int) $data['price_coins'],
             (int) $data['category_id'],
@@ -240,8 +240,8 @@ final class AdminService
                 'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=?, expiration_months=? WHERE id=?'
             )->execute($payload);
 
-            $keysAdded = $bulkSnippets ? ApiKeyPoolService::addKeys($pdo, $id, $bulkSnippets) : 0;
-            $counts = ApiKeyPoolService::countsForListing($pdo, $id);
+            $keysAdded = $bulkSnippets ? KeyPool::addKeys($pdo, $id, $bulkSnippets) : 0;
+            $counts = KeyPool::countsForListing($pdo, $id);
             if ($counts['total'] === 0) {
                 throw new InvalidArgumentException('This listing has no code snippets. Paste snippets in the bulk field.');
             }
@@ -264,7 +264,7 @@ final class AdminService
         )->execute($payload);
 
         $listingId = Database::lastInsertId($pdo, 'api_listings');
-        $keysAdded = ApiKeyPoolService::addKeys($pdo, $listingId, $bulkSnippets);
+        $keysAdded = KeyPool::addKeys($pdo, $listingId, $bulkSnippets);
 
         return [
             'listingId' => $listingId,

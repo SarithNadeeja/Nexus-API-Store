@@ -73,7 +73,7 @@ try {
     bootstrap_require('UserService.php');
     bootstrap_require('AdminService.php');
     bootstrap_require('CoinPackageService.php');
-    bootstrap_require('ApiKeyPoolService.php');
+    bootstrap_require('KeyPool.php');
     bootstrap_require('VerificationService.php');
 } catch (Throwable $e) {
     http_response_code(500);
@@ -99,7 +99,7 @@ try {
 }
 
 try {
-    ApiKeyPoolService::ensureSchema($pdo);
+    KeyPool::ensureSchema($pdo);
 } catch (Throwable $e) {
     error_log('API key pool schema initialization failed: ' . $e->getMessage());
 }

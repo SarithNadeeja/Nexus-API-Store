@@ -114,7 +114,7 @@ final class UserService
 
     public static function getPublicApis(PDO $pdo): array
     {
-        ApiKeyPoolService::ensureSchema($pdo);
+        KeyPool::ensureSchema($pdo);
         $userId = Auth::appUserId();
         $stmt = $pdo->query(
             "SELECT a.id, a.name, a.description, a.status, a.price_coins, a.expiration_months, c.name AS category,
@@ -246,7 +246,7 @@ final class UserService
 
     public static function purchase(PDO $pdo, array $user, int $apiId, int $quantity = 1): array
     {
-        ApiKeyPoolService::ensureSchema($pdo);
+        KeyPool::ensureSchema($pdo);
 
         if ($quantity < 1) {
             throw new InvalidArgumentException('Quantity must be at least 1.');
@@ -265,7 +265,7 @@ final class UserService
             throw new InvalidArgumentException('This API is not available for purchase.');
         }
 
-        $available = ApiKeyPoolService::countsForListing($pdo, $apiId)['available'];
+        $available = KeyPool::countsForListing($pdo, $apiId)['available'];
         if ($available < $quantity) {
             throw new InvalidArgumentException(
                 $available === 0
@@ -296,7 +296,7 @@ final class UserService
 
         try {
             for ($i = 0; $i < $quantity; $i++) {
-                $key = ApiKeyPoolService::claimKeyForPurchase($pdo, $apiId);
+                $key = KeyPool::claimKeyForPurchase($pdo, $apiId);
                 if (!$key) {
                     throw new InvalidArgumentException('Not enough API keys available for this quantity.');
                 }

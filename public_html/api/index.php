@@ -81,4 +81,7 @@ try {
     json_error('Database error: ' . $message, 503);
 } catch (RuntimeException $e) {
     json_error($e->getMessage(), 503);
+} catch (Throwable $e) {
+    error_log('API error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    json_error('Server error. Check /health.php for diagnostics.', 500);
 }

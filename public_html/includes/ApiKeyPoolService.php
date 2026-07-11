@@ -83,7 +83,11 @@ final class ApiKeyPoolService
             // Pool may not exist yet on first run.
         }
 
-        self::migrateLegacyListingKeys($pdo);
+        try {
+            self::migrateLegacyListingKeys($pdo);
+        } catch (Throwable $e) {
+            error_log('ApiKeyPoolService legacy migration failed: ' . $e->getMessage());
+        }
     }
 
     private static function migrateLegacyListingKeys(PDO $pdo): void

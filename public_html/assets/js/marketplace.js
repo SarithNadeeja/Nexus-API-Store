@@ -321,4 +321,5 @@ async function renderMarketplace(containerId, options = {}) {
 }
 
 window.renderMarketplace = renderMarketplace;
-window.downloadApiKeysTxt = downloadApiKeysTxt;
+window.downloadCodeSnippetsTxt = downloadCodeSnippetsTxt;
+window.downloadApiKeysTxt = downloadCodeSnippetsTxt;

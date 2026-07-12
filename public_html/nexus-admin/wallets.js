@@ -2,15 +2,237 @@ document.addEventListener('DOMContentLoaded', () => {
   const root = document.getElementById('wallets-page');
   if (!root) return;
 
-  const userSelect = document.getElementById('wallet-user-id');
   const tableSearch = document.getElementById('wallet-table-search');
   const tableBody = document.getElementById('wallet-table-body');
   const pagination = document.getElementById('wallet-pagination');
   const perPageSelect = document.getElementById('wallet-per-page');
   const summary = document.getElementById('wallet-table-summary');
   const exportBtn = document.getElementById('wallet-export-btn');
+  const adjustForm = document.getElementById('wallet-adjust-form');
 
   let currentPage = 1;
+
+  function initUserCombobox() {
+    const combobox = document.getElementById('wallet-user-combobox');
+    const hiddenInput = document.getElementById('wallet-user-id');
+    const searchInput = document.getElementById('wallet-user-search');
+    const listEl = document.getElementById('wallet-user-list');
+    const clearBtn = document.getElementById('wallet-user-clear');
+    const dataEl = document.getElementById('wallet-users-data');
+
+    if (!combobox || !hiddenInput || !searchInput || !listEl || !dataEl) {
+      return null;
+    }
+
+    let users = [];
+    try {
+      users = JSON.parse(dataEl.textContent || '[]');
+    } catch (_) {
+      users = [];
+    }
+
+    let activeIndex = -1;
+    let selectedUser = null;
+
+    function formatLabel(user) {
+      return `${user.name} (${user.email})`;
+    }
+
+    function setSelected(user, updateInput = true) {
+      selectedUser = user;
+      hiddenInput.value = user ? String(user.id) : '';
+      combobox.classList.toggle('is-invalid', false);
+      clearBtn.hidden = !user;
+
+      if (updateInput) {
+        searchInput.value = user ? formatLabel(user) : '';
+      }
+    }
+
+    function clearSelection() {
+      setSelected(null);
+      searchInput.value = '';
+      closeList();
+      searchInput.focus();
+    }
+
+    function closeList() {
+      listEl.hidden = true;
+      listEl.innerHTML = '';
+      activeIndex = -1;
+    }
+
+    function openList() {
+      listEl.hidden = false;
+    }
+
+    function scoreUser(user, query) {
+      const name = String(user.name || '').toLowerCase();
+      const email = String(user.email || '').toLowerCase();
+      const q = query.toLowerCase();
+
+      if (name === q || email === q) return 0;
+      if (name.startsWith(q) || email.startsWith(q)) return 1;
+      if (name.includes(q) || email.includes(q)) return 2;
+      return 99;
+    }
+
+    function filterUsers(query) {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        return users.slice(0, 12);
+      }
+
+      return users
+        .map((user) => ({ user, score: scoreUser(user, trimmed) }))
+        .filter((entry) => entry.score < 99)
+        .sort((a, b) => {
+          if (a.score !== b.score) return a.score - b.score;
+          return String(a.user.name).localeCompare(String(b.user.name));
+        })
+        .slice(0, 12)
+        .map((entry) => entry.user);
+    }
+
+    function renderList(items) {
+      listEl.innerHTML = '';
+
+      if (!items.length) {
+        const empty = document.createElement('li');
+        empty.className = 'user-combobox-empty';
+        empty.textContent = 'No matching users found.';
+        listEl.appendChild(empty);
+        openList();
+        return;
+      }
+
+      items.forEach((user, index) => {
+        const item = document.createElement('li');
+        item.dataset.index = String(index);
+        item.dataset.userId = String(user.id);
+        item.innerHTML = `<strong>${escapeHtml(user.name)}</strong><span>${escapeHtml(user.email)} · ◎ ${Number(user.balance || 0).toLocaleString()} coins</span>`;
+        item.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          setSelected(user);
+          closeList();
+        });
+        listEl.appendChild(item);
+      });
+
+      openList();
+    }
+
+    function highlightActive() {
+      const items = Array.from(listEl.querySelectorAll('li:not(.user-combobox-empty)'));
+      items.forEach((item, index) => {
+        item.classList.toggle('is-active', index === activeIndex);
+      });
+
+      const activeItem = items[activeIndex];
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    function showSuggestions() {
+      if (selectedUser && searchInput.value.trim() === formatLabel(selectedUser)) {
+        renderList(users.slice(0, 12));
+        return;
+      }
+
+      selectedUser = null;
+      hiddenInput.value = '';
+      renderList(filterUsers(searchInput.value));
+    }
+
+    searchInput.addEventListener('focus', showSuggestions);
+    searchInput.addEventListener('input', () => {
+      selectedUser = null;
+      hiddenInput.value = '';
+      clearBtn.hidden = true;
+      showSuggestions();
+    });
+
+    searchInput.addEventListener('keydown', (event) => {
+      const items = Array.from(listEl.querySelectorAll('li:not(.user-combobox-empty)'));
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (listEl.hidden) showSuggestions();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        highlightActive();
+        return;
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        highlightActive();
+        return;
+      }
+
+      if (event.key === 'Enter' && !listEl.hidden && activeIndex >= 0 && items[activeIndex]) {
+        event.preventDefault();
+        const userId = Number(items[activeIndex].dataset.userId);
+        const user = users.find((entry) => entry.id === userId);
+        if (user) {
+          setSelected(user);
+          closeList();
+        }
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        closeList();
+      }
+    });
+
+    clearBtn?.addEventListener('click', clearSelection);
+
+    document.addEventListener('click', (event) => {
+      if (!combobox.contains(event.target)) {
+        closeList();
+        if (selectedUser) {
+          searchInput.value = formatLabel(selectedUser);
+        }
+      }
+    });
+
+    adjustForm?.addEventListener('submit', (event) => {
+      if (!hiddenInput.value) {
+        event.preventDefault();
+        combobox.classList.add('is-invalid');
+        searchInput.focus();
+        showSuggestions();
+      }
+    });
+
+    return {
+      selectById(userId, name = '', email = '') {
+        const user = users.find((entry) => entry.id === Number(userId));
+        if (user) {
+          setSelected(user);
+          return;
+        }
+        if (userId) {
+          setSelected({
+            id: Number(userId),
+            name: name || `User #${userId}`,
+            email: email || '',
+            balance: 0,
+          });
+        }
+      },
+    };
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[ch]);
+  }
+
+  const userCombobox = initUserCombobox();
 
   function visibleRows() {
     const query = (tableSearch?.value || '').trim().toLowerCase();
@@ -89,10 +311,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('[data-select-wallet-user]').forEach((button) => {
     button.addEventListener('click', () => {
-      if (userSelect) {
-        userSelect.value = button.dataset.userId || '';
-      }
-      document.getElementById('wallet-adjust-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      userCombobox?.selectById(
+        button.dataset.userId,
+        button.dataset.userName || '',
+        button.dataset.userEmail || ''
+      );
+      adjustForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       document.querySelectorAll('.wallet-menu').forEach((menu) => menu.classList.remove('is-open'));
     });
   });

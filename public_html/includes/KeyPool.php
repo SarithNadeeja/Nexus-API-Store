@@ -12,6 +12,10 @@ final class KeyPool
             return;
         }
 
+        if ($pdo->inTransaction()) {
+            return;
+        }
+
         self::safeExec($pdo, "CREATE TABLE IF NOT EXISTS api_key_inventory (
             id BIGSERIAL PRIMARY KEY,
             api_listing_id BIGINT NOT NULL,
@@ -27,7 +31,7 @@ final class KeyPool
         )");
         self::safeExec($pdo, 'CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status)');
         self::safeExec($pdo, 'ALTER TABLE api_key_inventory ADD COLUMN IF NOT EXISTS key_hash CHAR(64)');
-        self::safeExec($pdo, "UPDATE api_key_inventory SET key_hash = encode(digest(key_link, 'sha256'), 'hex') WHERE key_hash IS NULL OR key_hash = ''");
+        self::backfillKeyHashes($pdo);
         self::safeExec($pdo, 'ALTER TABLE api_key_inventory DROP CONSTRAINT IF EXISTS uk_api_key_inventory_link');
         self::safeExec($pdo, 'DROP INDEX IF EXISTS uk_api_key_inventory_listing_key_hash');
         self::safeExec($pdo, 'CREATE UNIQUE INDEX IF NOT EXISTS uk_api_key_inventory_listing_key_hash ON api_key_inventory (api_listing_id, key_hash)');
@@ -56,6 +60,28 @@ final class KeyPool
             $pdo->exec($sql);
         } catch (Throwable $e) {
             error_log('KeyPool migration skipped: ' . $e->getMessage());
+        }
+    }
+
+    private static function backfillKeyHashes(PDO $pdo): void
+    {
+        try {
+            $stmt = $pdo->query(
+                "SELECT id, key_link FROM api_key_inventory WHERE key_hash IS NULL OR key_hash = ''"
+            );
+            if (!$stmt) {
+                return;
+            }
+
+            $update = $pdo->prepare('UPDATE api_key_inventory SET key_hash = ? WHERE id = ?');
+            foreach ($stmt->fetchAll() as $row) {
+                $update->execute([
+                    self::snippetHash((string) $row['key_link']),
+                    (int) $row['id'],
+                ]);
+            }
+        } catch (Throwable $e) {
+            error_log('KeyPool hash backfill skipped: ' . $e->getMessage());
         }
     }
 
@@ -149,10 +175,11 @@ final class KeyPool
 
     public static function countsForListing(PDO $pdo, int $listingId): array
     {
-        self::ensureSchema($pdo);
-        $stmt = $pdo->prepare('SELECT
-            (SELECT COUNT(*)::int FROM api_key_inventory WHERE api_listing_id = ?) AS available_keys,
-            (SELECT COUNT(*)::int FROM api_purchases WHERE api_listing_id = ?) AS sold_keys');
+        $stmt = $pdo->prepare(
+            'SELECT
+                (SELECT COUNT(*)::int FROM api_key_inventory WHERE api_listing_id = ?) AS available_keys,
+                (SELECT COUNT(*)::int FROM api_purchases WHERE api_listing_id = ?) AS sold_keys'
+        );
         $stmt->execute([$listingId, $listingId]);
         $row = $stmt->fetch() ?: ['available_keys' => 0, 'sold_keys' => 0];
         $available = (int) $row['available_keys'];
@@ -167,20 +194,28 @@ final class KeyPool
 
     public static function claimKeyForPurchase(PDO $pdo, int $listingId): ?array
     {
-        self::ensureSchema($pdo);
-        $stmt = $pdo->prepare('SELECT id, key_link FROM api_key_inventory WHERE api_listing_id = ? ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED');
+        $stmt = $pdo->prepare(
+            'SELECT id, key_link
+             FROM api_key_inventory
+             WHERE api_listing_id = ?
+             ORDER BY id ASC
+             LIMIT 1
+             FOR UPDATE SKIP LOCKED'
+        );
         $stmt->execute([$listingId]);
         $key = $stmt->fetch();
         if (!$key) {
             return null;
         }
-        $pdo->prepare('DELETE FROM api_key_inventory WHERE id = ?')->execute([(int) $key['id']]);
+
+        $pdo->prepare('DELETE FROM api_key_inventory WHERE id = ?')
+            ->execute([(int) $key['id']]);
+
         return $key;
     }
 
     public static function deleteByListing(PDO $pdo, int $listingId): void
     {
-        self::ensureSchema($pdo);
         $pdo->prepare('DELETE FROM api_key_inventory WHERE api_listing_id = ?')->execute([$listingId]);
     }
 }

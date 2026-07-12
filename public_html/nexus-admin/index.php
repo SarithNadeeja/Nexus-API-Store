@@ -710,17 +710,29 @@ $username = Auth::adminUsername();
 
                         <label class="field-label">
                             <span>User <em>*</em></span>
-                            <select name="userId" id="wallet-user-id" required>
-                                <?php if (!$users): ?>
-                                    <option value="">No users available</option>
-                                <?php else: ?>
-                                    <?php foreach ($users as $user): ?>
-                                        <option value="<?= (int) $user['id'] ?>">
-                                            <?= h($user['full_name']) ?> (<?= h($user['email']) ?>)
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </select>
+                            <div class="user-combobox" id="wallet-user-combobox">
+                                <input type="hidden" name="userId" id="wallet-user-id" value="">
+                                <div class="user-combobox-control">
+                                    <span class="user-combobox-icon">⌕</span>
+                                    <input
+                                        type="text"
+                                        id="wallet-user-search"
+                                        placeholder="Type name or email to search users..."
+                                        autocomplete="off"
+                                        <?= !$users ? 'disabled' : '' ?>
+                                    >
+                                    <button class="user-combobox-clear" type="button" id="wallet-user-clear" hidden aria-label="Clear selected user">×</button>
+                                </div>
+                                <ul class="user-combobox-list" id="wallet-user-list" hidden></ul>
+                            </div>
+                            <script type="application/json" id="wallet-users-data"><?= json_encode(array_map(static function (array $user): array {
+                                return [
+                                    'id' => (int) $user['id'],
+                                    'name' => $user['full_name'],
+                                    'email' => $user['email'],
+                                    'balance' => (int) $user['coin_balance'],
+                                ];
+                            }, $users), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
                         </label>
 
                         <label class="field-label">
@@ -807,7 +819,13 @@ $username = Auth::adminUsername();
                                         <div class="wallet-actions">
                                             <button class="icon-action menu" type="button" data-wallet-menu-toggle title="Actions">⋮</button>
                                             <div class="wallet-menu">
-                                                <button type="button" data-select-wallet-user data-user-id="<?= (int) $user['id'] ?>">Adjust wallet</button>
+                                                <button
+                                                    type="button"
+                                                    data-select-wallet-user
+                                                    data-user-id="<?= (int) $user['id'] ?>"
+                                                    data-user-name="<?= h($user['full_name']) ?>"
+                                                    data-user-email="<?= h($user['email']) ?>"
+                                                >Adjust wallet</button>
                                             </div>
                                         </div>
                                     </td>

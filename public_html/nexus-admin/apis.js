@@ -3,16 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!form) return;
 
   const idInput = document.getElementById('api-id');
-  const nameInput = document.getElementById('api-name');
-  const statusInput = document.getElementById('api-status');
-  const categoryInput = document.getElementById('api-category');
-  const priceInput = document.getElementById('api-price');
-  const accessInput = document.getElementById('api-access');
-  const descriptionInput = document.getElementById('api-description');
-  const bulkInput = document.getElementById('api-bulk-keys');
-  const bulkCount = document.getElementById('api-bulk-count');
+  const codeInput = document.getElementById('api-code-snippet');
   const resetBtn = document.getElementById('api-reset-btn');
-  const formTitle = document.getElementById('api-form-title');
   const tableSearch = document.getElementById('api-table-search');
   const tableBody = document.getElementById('api-table-body');
   const pagination = document.getElementById('api-pagination');
@@ -20,31 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentPage = 1;
 
-  function countBulkSnippets(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return 0;
-
-    const chunks = /\r?\n---\r?\n/.test(raw)
-      ? raw.split(/\r?\n---\r?\n/)
-      : raw.split(/\r?\n/);
-
-    return chunks
-      .map((chunk) => chunk.trim())
-      .filter((chunk) => chunk && !chunk.startsWith('#')).length;
-  }
-
-  function updateBulkCount() {
-    if (!bulkCount || !bulkInput) return;
-    const count = countBulkSnippets(bulkInput.value);
-    bulkCount.textContent = count === 1 ? '1 snippet ready to upload' : `${count} snippets ready to upload`;
-  }
-
   function resetForm() {
     window.location.href = '?section=apis';
   }
-
-  bulkInput?.addEventListener('input', updateBulkCount);
-  updateBulkCount();
 
   resetBtn?.addEventListener('click', (event) => {
     event.preventDefault();
@@ -114,11 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', (event) => {
     const isEdit = Boolean(idInput?.value);
-    const bulkCountValue = countBulkSnippets(bulkInput?.value || '');
-    if (!isEdit && bulkCountValue === 0) {
+    const code = String(codeInput?.value || '').trim();
+    if (!isEdit && code === '') {
       event.preventDefault();
-      alert('Paste at least one code snippet.');
-      bulkInput?.focus();
+      alert('Paste the full code snippet customers will receive.');
+      codeInput?.focus();
     }
   });
 });

@@ -25,32 +25,16 @@ final class AdminService
             return;
         }
 
-        try {
-            self::ensureAdminColumn($pdo, 'must_change_credentials', 'BOOLEAN NOT NULL DEFAULT FALSE', true);
-            self::ensureAdminColumn($pdo, 'last_login', 'TIMESTAMP NULL', false);
-        } catch (Throwable $e) {
-            error_log('AdminService::ensureAdminSchema failed: ' . $e->getMessage());
-        }
-    }
-
-    private static function ensureAdminColumn(PDO $pdo, string $column, string $definition, bool $seedDefaultAdminFlag): void
-    {
-        try {
-            $pdo->exec("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS {$column} {$definition}");
-        } catch (PDOException) {
-            $columnCheck = $pdo->prepare(
-                'SELECT 1 FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = \'admin_users\' AND column_name = ?'
-            );
-            $columnCheck->execute([$column]);
-            if (!$columnCheck->fetchColumn()) {
-                $pdo->exec("ALTER TABLE admin_users ADD COLUMN {$column} {$definition}");
-            }
-        }
-
-        if (!$seedDefaultAdminFlag || $column !== 'must_change_credentials') {
+        $stmt = $pdo->prepare(
+            "SELECT 1 FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'admin_users' AND column_name = 'must_change_credentials'"
+        );
+        $stmt->execute();
+        if ($stmt->fetchColumn()) {
             return;
         }
+
+        $pdo->exec('ALTER TABLE admin_users ADD COLUMN must_change_credentials BOOLEAN NOT NULL DEFAULT FALSE');
 
         $admins = $pdo->query('SELECT id, username, password_hash FROM admin_users')->fetchAll();
         $update = $pdo->prepare('UPDATE admin_users SET must_change_credentials = TRUE WHERE id = ?');
@@ -79,7 +63,6 @@ final class AdminService
         if (!$admin || !password_verify($password, $admin['password_hash'])) {
             return null;
         }
-        $pdo->prepare('UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')->execute([(int) $admin['id']]);
         Auth::setAdmin((int) $admin['id'], $admin['username']);
         return $admin;
     }
@@ -192,84 +175,75 @@ final class AdminService
     {
         KeyPool::ensureSchema($pdo);
 
-        $required = ['name', 'status', 'category_id', 'price_coins', 'expiration_months'];
-        foreach ($required as $field) {
-            if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
-                throw new InvalidArgumentException(ucfirst(str_replace('_', ' ', $field)) . ' is required.');
-            }
+        $name = trim($data['name'] ?? '');
+        $status = trim($data['status'] ?? '');
+        $categoryId = (int) ($data['category_id'] ?? 0);
+        $priceCoins = (int) ($data['price_coins'] ?? 0);
+        $expirationMonths = (int) ($data['expiration_months'] ?? 1);
+        $description = trim($data['description'] ?? '');
+        $codeRaw = (string) ($data['code_snippet'] ?? $data['bulk_key_links'] ?? '');
+        $code = KeyPool::normalizeCode($codeRaw);
+
+        if ($name === '') {
+            throw new InvalidArgumentException('Name is required.');
+        }
+        if ($status === '') {
+            throw new InvalidArgumentException('Status is required.');
+        }
+        if ($categoryId <= 0) {
+            throw new InvalidArgumentException('Category is required.');
+        }
+        if ($priceCoins <= 0) {
+            throw new InvalidArgumentException('Price must be greater than zero.');
+        }
+        if ($expirationMonths < 1 || $expirationMonths > 120) {
+            throw new InvalidArgumentException('Expiration must be between 1 and 120 months.');
         }
 
         $id = isset($data['id']) && $data['id'] !== '' ? (int) $data['id'] : null;
-        if ($id) {
-            $stmt = $pdo->prepare('SELECT * FROM api_listings WHERE id = ?');
-            $stmt->execute([$id]);
-            $existing = $stmt->fetch() ?: null;
-            if (!$existing) {
-                throw new InvalidArgumentException('API listing not found.');
-            }
+
+        if (!$id && $code === '') {
+            throw new InvalidArgumentException('Paste the full code snippet customers will receive.');
         }
-
-        $expirationMonths = (int) $data['expiration_months'];
-        if ($expirationMonths < 1 || $expirationMonths > 120) {
-            throw new InvalidArgumentException('Expiration time must be between 1 and 120 months.');
-        }
-
-        $bulkRaw = trim((string) ($data['bulk_key_links'] ?? ''));
-        $bulkSnippets = $bulkRaw !== '' ? KeyPool::parseBulkSnippets($bulkRaw) : [];
-
-        if (!$id && !$bulkSnippets) {
-            throw new InvalidArgumentException('Add at least one code snippet.');
-        }
-
-        $placeholderLink = '';
-        $payload = [
-            trim((string) $data['name']),
-            trim((string) ($data['description'] ?? '')),
-            $placeholderLink,
-            $placeholderLink,
-            KeyPool::POOL_MARKER,
-            trim((string) $data['status']),
-            (int) $data['price_coins'],
-            (int) $data['category_id'],
-            $expirationMonths,
-        ];
 
         if ($id) {
-            $payload[] = $id;
             $pdo->prepare(
-                'UPDATE api_listings SET name=?, description=?, endpoint_url=?, access_link=?, api_key_value=?, status=?, price_coins=?, category_id=?, expiration_months=? WHERE id=?'
-            )->execute($payload);
+                'UPDATE api_listings
+                 SET name = ?, description = ?, status = ?, price_coins = ?, category_id = ?, expiration_months = ?
+                 WHERE id = ?'
+            )->execute([$name, $description, $status, $priceCoins, $categoryId, $expirationMonths, $id]);
 
-            $keysAdded = $bulkSnippets ? KeyPool::addKeys($pdo, $id, $bulkSnippets) : 0;
-            $counts = KeyPool::countsForListing($pdo, $id);
-            if ($counts['total'] === 0) {
-                throw new InvalidArgumentException('This listing has no code snippets. Paste snippets in the bulk field.');
+            if ($code !== '') {
+                KeyPool::saveListingCode($pdo, $id, $code);
             }
 
-            $message = 'API listing updated.';
-            if ($keysAdded > 0) {
-                $skipped = count($bulkSnippets) - $keysAdded;
-                $message = "Added {$keysAdded} new code snippet" . ($keysAdded === 1 ? '' : 's') . '.';
-                if ($skipped > 0) {
-                    $message .= " {$skipped} duplicate snippet" . ($skipped === 1 ? ' was' : 's were') . ' skipped.';
-                }
-            }
-
-            return ['listingId' => $id, 'keysAdded' => $keysAdded, 'message' => $message];
+            $listingId = $id;
+            $message = $code !== ''
+                ? 'API listing updated and code snippet saved.'
+                : 'API listing updated.';
+        } else {
+            $pdo->prepare(
+                'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id, expiration_months, code_snippet)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            )->execute([
+                $name,
+                $description,
+                '',
+                '',
+                $code,
+                $status,
+                $priceCoins,
+                $categoryId,
+                $expirationMonths,
+                $code,
+            ]);
+            $listingId = (int) Database::lastInsertId($pdo, 'api_listings');
+            $message = 'API listing created with shared code snippet.';
         }
-
-        $pdo->prepare(
-            'INSERT INTO api_listings (name, description, endpoint_url, access_link, api_key_value, status, price_coins, category_id, expiration_months)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        )->execute($payload);
-
-        $listingId = Database::lastInsertId($pdo, 'api_listings');
-        $keysAdded = KeyPool::addKeys($pdo, $listingId, $bulkSnippets);
 
         return [
             'listingId' => $listingId,
-            'keysAdded' => $keysAdded,
-            'message' => "API listing created with {$keysAdded} code snippet" . ($keysAdded === 1 ? '' : 's') . '.',
+            'message' => $message,
         ];
     }
 

@@ -117,29 +117,25 @@ final class UserService
         KeyPool::ensureSchema($pdo);
         $userId = Auth::appUserId();
         $stmt = $pdo->query(
-            "SELECT a.id, a.name, a.description, a.status, a.price_coins, a.expiration_months, c.name AS category,
-                    COUNT(k.id)::int AS available_keys
+            "SELECT a.*, c.name AS category
              FROM api_listings a
              JOIN categories c ON c.id = a.category_id
-             LEFT JOIN api_key_inventory k ON k.api_listing_id = a.id
              WHERE a.status = 'ACTIVE'
-             GROUP BY a.id, c.name, a.expiration_months
              ORDER BY a.id ASC"
         );
         $rows = $stmt->fetchAll();
         $result = [];
 
         foreach ($rows as $row) {
+            if (!KeyPool::hasCode($row)) {
+                continue;
+            }
+
             $purchasedCount = 0;
             if ($userId !== null) {
                 $check = $pdo->prepare('SELECT COUNT(*) FROM api_purchases WHERE user_id = ? AND api_listing_id = ?');
                 $check->execute([$userId, $row['id']]);
                 $purchasedCount = (int) $check->fetchColumn();
-            }
-
-            $availableKeys = (int) $row['available_keys'];
-            if ($availableKeys === 0 && $purchasedCount === 0) {
-                continue;
             }
 
             $result[] = [
@@ -150,7 +146,7 @@ final class UserService
                 'status' => $row['status'],
                 'priceCoins' => (int) $row['price_coins'],
                 'expirationMonths' => (int) ($row['expiration_months'] ?? 1),
-                'availableKeys' => $availableKeys,
+                'availableKeys' => 100,
                 'purchased' => $purchasedCount > 0,
                 'purchasedCount' => $purchasedCount,
             ];
@@ -265,14 +261,11 @@ final class UserService
             throw new InvalidArgumentException('This API is not available for purchase.');
         }
 
-        $available = KeyPool::countsForListing($pdo, $apiId)['available'];
-        if ($available < $quantity) {
-            throw new InvalidArgumentException(
-                $available === 0
-                    ? 'This API is sold out. No keys are available right now.'
-                    : "Only {$available} key" . ($available === 1 ? ' is' : 's are') . ' available. Reduce your quantity.'
-            );
+        if (!KeyPool::hasCode($api)) {
+            throw new InvalidArgumentException('This API is not available for purchase yet.');
         }
+
+        $sharedCode = KeyPool::getCode($api);
 
         $price = (int) $api['price_coins'];
         $totalCost = $price * $quantity;
@@ -296,11 +289,7 @@ final class UserService
 
         try {
             for ($i = 0; $i < $quantity; $i++) {
-                $key = KeyPool::claimKeyForPurchase($pdo, $apiId);
-                if (!$key) {
-                    throw new InvalidArgumentException('Not enough API keys available for this quantity.');
-                }
-                $purchasedKeys[] = $key['key_link'];
+                $purchasedKeys[] = $sharedCode;
             }
 
             $deduct = $pdo->prepare(

@@ -86,15 +86,13 @@ $categories = $pdo->query('SELECT * FROM categories ORDER BY name')->fetchAll();
 $apis = $pdo->query('SELECT a.*, c.name AS category_name FROM api_listings a JOIN categories c ON c.id = a.category_id ORDER BY a.id DESC')->fetchAll();
 $editApiId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editApi = null;
-$editApiKeyCounts = ['total' => 0, 'available' => 0, 'assigned' => 0];
+$editApiKeyCounts = ['hasCode' => false, 'sold' => 0];
 
 if ($section === 'apis') {
     KeyPool::ensureSchema($pdo);
     foreach ($apis as &$apiRow) {
-        $counts = KeyPool::countsForListing($pdo, (int) $apiRow['id']);
-        $apiRow['key_total'] = $counts['total'];
-        $apiRow['key_available'] = $counts['available'];
-        $apiRow['key_assigned'] = $counts['sold'];
+        $counts = KeyPool::statsForListing($pdo, (int) $apiRow['id']);
+        $apiRow['has_code'] = $counts['hasCode'];
         $apiRow['key_sold'] = $counts['sold'];
         if ($editApiId > 0 && (int) $apiRow['id'] === $editApiId) {
             $editApi = $apiRow;
@@ -536,7 +534,7 @@ $username = Auth::adminUsername();
                 <div class="panel-title-row" style="margin-bottom:1rem;">
                     <div>
                         <h4 id="api-form-title"><?= $editApi ? 'Update API Listing' : 'Add API Listing' ?></h4>
-                        <p class="muted" style="margin:0.35rem 0 0;">One listing name and category can hold many unique code snippets. Each purchased key expires after the selected number of months.</p>
+                        <p class="muted" style="margin:0.35rem 0 0;">Upload one shared code snippet per listing. Every customer receives the same code after purchase.</p>
                     </div>
                     <?php if ($editApi): ?>
                         <a class="btn btn-secondary btn-sm" href="?section=apis">Add New Listing</a>
@@ -566,21 +564,19 @@ $username = Auth::adminUsername();
                     <span class="field-hint full-span">Each sold API key will expire this many months after a customer purchases it.</span>
                     <label class="full-span">Description<textarea name="description" id="api-description" rows="3"><?= $editApi ? h($editApi['description'] ?? '') : '' ?></textarea></label>
                     <label class="full-span">
-                        <?= $editApi ? 'Add More Code Snippets' : 'Code Snippets' ?>
-                        <textarea name="bulk_key_links" id="api-bulk-keys" rows="12" placeholder="const API_KEY = 'sk_live_abc123';&#10;curl -H &quot;Authorization: Bearer token_here&quot; https://api.example.com/v1/resource&#10;&#10;---&#10;&#10;fetch('https://api.example.com', {&#10;  headers: { Authorization: 'Bearer token_here' }&#10;});"></textarea>
-                        <span class="field-hint">Paste one code snippet per line, or separate multiline snippets with a line containing only <code>---</code>. Lines starting with # are ignored.</span>
-                        <span class="field-hint" id="api-bulk-count">0 snippets ready to upload</span>
+                        Code Snippet
+                        <textarea name="code_snippet" id="api-code-snippet" rows="16" placeholder="const API_KEY = 'sk_live_abc123';&#10;curl -H &quot;Authorization: Bearer token_here&quot; https://api.example.com/v1/resource"><?= $editApi ? h(KeyPool::getCode($editApi)) : '' ?></textarea>
+                        <span class="field-hint">Paste the full code exactly as customers should receive it. The entire textarea is saved as one snippet — nothing is split by line or <code>---</code>.</span>
                     </label>
                     <?php if ($editApi): ?>
                         <div class="full-span key-pool-stats">
-                            <strong>Key pool:</strong>
-                            <span class="pill pill-emerald"><?= (int) $editApiKeyCounts['available'] ?> available</span>
-                            <span class="pill"><?= (int) $editApiKeyCounts['sold'] ?> sold</span>
-                            <span class="pill pill-cyan"><?= (int) $editApiKeyCounts['total'] ?> uploaded</span>
+                            <strong>Listing:</strong>
+                            <span class="pill <?= $editApiKeyCounts['hasCode'] ? 'pill-emerald' : 'pill-amber' ?>"><?= $editApiKeyCounts['hasCode'] ? 'Code configured' : 'No code yet' ?></span>
+                            <span class="pill pill-cyan"><?= (int) $editApiKeyCounts['sold'] ?> purchase<?= (int) $editApiKeyCounts['sold'] === 1 ? '' : 's' ?></span>
                         </div>
                     <?php endif; ?>
                     <div class="full-span form-actions">
-                        <button class="primary-btn" type="submit"><?= $editApi ? 'Save Changes' : 'Create Listing & Upload Keys' ?></button>
+                        <button class="primary-btn" type="submit"><?= $editApi ? 'Save Changes' : 'Create Listing' ?></button>
                         <button class="btn btn-secondary" type="button" id="api-reset-btn">Clear Form</button>
                     </div>
                 </form>
@@ -589,7 +585,7 @@ $username = Auth::adminUsername();
                 <div class="panel-title-row" style="margin-bottom:1rem;">
                     <div>
                         <h4>API Listings</h4>
-                        <p class="muted" style="margin:0.35rem 0 0;">Each row is one product. Keys are drawn from the pool when a user purchases.</p>
+                        <p class="muted" style="margin:0.35rem 0 0;">Each row is one product. Customers receive the same shared code snippet after purchase.</p>
                     </div>
                     <label class="dashboard-search">
                         <span>⌕</span>
@@ -597,7 +593,7 @@ $username = Auth::adminUsername();
                     </label>
                 </div>
                 <table>
-                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Expires In</th><th>Available</th><th>Sold</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Expires In</th><th>Code</th><th>Purchases</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="api-table-body">
                     <?php foreach ($apis as $api): ?>
                         <tr data-row>
@@ -605,7 +601,7 @@ $username = Auth::adminUsername();
                             <td><?= h($api['category_name']) ?></td>
                             <td><?= (int) $api['price_coins'] ?> coins</td>
                             <td><?= (int) ($api['expiration_months'] ?? 1) ?> mo</td>
-                            <td><span class="pill <?= (int) ($api['key_available'] ?? 0) > 0 ? 'pill-emerald' : 'pill-amber' ?>"><?= (int) ($api['key_available'] ?? 0) ?></span></td>
+                            <td><span class="pill <?= !empty($api['has_code']) ? 'pill-emerald' : 'pill-amber' ?>"><?= !empty($api['has_code']) ? 'Yes' : 'No' ?></span></td>
                             <td><?= (int) ($api['key_sold'] ?? 0) ?></td>
                             <td><?= h($api['status']) ?></td>
                             <td>
@@ -622,11 +618,10 @@ $username = Auth::adminUsername();
                                         data-price="<?= (int) $api['price_coins'] ?>"
                                         data-expiration-months="<?= (int) ($api['expiration_months'] ?? 1) ?>"
                                         data-description="<?= h($api['description'] ?? '') ?>"
-                                        data-available="<?= (int) ($api['key_available'] ?? 0) ?>"
-                                        data-assigned="<?= (int) ($api['key_assigned'] ?? 0) ?>"
-                                        data-total="<?= (int) ($api['key_total'] ?? 0) ?>"
+                                        data-has-code="<?= !empty($api['has_code']) ? '1' : '0' ?>"
+                                        data-purchases="<?= (int) ($api['key_sold'] ?? 0) ?>"
                                     >✎</button>
-                                    <form method="post" class="inline-form" onsubmit="return confirm('Delete this API listing and all code snippets?')">
+                                    <form method="post" class="inline-form" onsubmit="return confirm('Delete this API listing?')">
                                         <input type="hidden" name="action" value="delete_api">
                                         <input type="hidden" name="return_section" value="apis">
                                         <input type="hidden" name="id" value="<?= (int) $api['id'] ?>">
@@ -638,7 +633,7 @@ $username = Auth::adminUsername();
                     <?php endforeach; ?>
                     <?php if (!$apis): ?>
                         <tr>
-                            <td colspan="8" class="empty-copy">No API listings yet. Create one above and paste your code snippets.</td>
+                            <td colspan="8" class="empty-copy">No API listings yet. Create one above and paste the shared code snippet.</td>
                         </tr>
                     <?php endif; ?>
                     </tbody>

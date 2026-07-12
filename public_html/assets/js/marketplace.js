@@ -9,22 +9,20 @@ function formatCoins(value) {
 }
 
 function downloadCodeSnippetsTxt(apiName, snippets) {
-  const safeName = String(apiName || 'api_snippets').replace(/[^a-z0-9_-]+/gi, '_').replace(/_+/g, '_');
+  const safeName = String(apiName || 'api_snippet').replace(/[^a-z0-9_-]+/gi, '_').replace(/_+/g, '_');
+  const uniqueSnippets = [...new Set((snippets || []).map((snippet) => String(snippet || '').trim()).filter(Boolean))];
+  const snippet = uniqueSnippets[0] || '';
   const header = [
     `# ${apiName}`,
     `# Purchased: ${new Date().toLocaleString()}`,
-    `# Total snippets: ${snippets.length}`,
     '',
   ].join('\n');
-  const body = snippets.map((snippet, index) => (
-    snippets.length > 1 ? `# Snippet ${index + 1}\n${snippet}` : snippet
-  )).join('\n\n---\n\n');
-  const content = `${header}${body}\n`;
+  const content = `${header}${snippet}\n`;
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${safeName}_code_snippets.txt`;
+  link.download = `${safeName}_code_snippet.txt`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -48,20 +46,14 @@ function showBulkPurchaseSuccess(result) {
         <button class="bulk-modal-close" type="button" aria-label="Close">×</button>
       </div>
       <div class="bulk-modal-body">
-        <p>You bought <strong>${quantity}</strong> API key${quantity === 1 ? '' : 's'} for <strong>${escapeHtml(result.apiName || 'this API')}</strong>.</p>
+        <p>You purchased access to <strong>${escapeHtml(result.apiName || 'this API')}</strong>. Every customer receives the same shared code snippet.</p>
         <p class="bulk-modal-summary">
           <span>Total spent: <strong>${formatCoins(result.coinsSpent)} coins</strong></span>
           <span>Expires: <strong>${result.expirationMonths || 1} month${(result.expirationMonths || 1) === 1 ? '' : 's'} from purchase</strong></span>
         </p>
-        ${quantity > 1 ? `
-          <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
-            Download ${quantity} Code Snippets (.txt)
-          </button>
-        ` : `
-          <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
-            Download Code Snippet (.txt)
-          </button>
-        `}
+        <button class="btn btn-primary btn-sm bulk-download-btn" type="button" id="bulk-download-keys-btn">
+          Download Code Snippet (.txt)
+        </button>
         <a class="btn btn-secondary btn-sm" href="/dashboard.html#my-api-keys">View in Dashboard</a>
       </div>
     </div>
@@ -94,18 +86,18 @@ function openBulkPurchaseModal(api, onConfirm) {
   overlay.innerHTML = `
     <div class="bulk-modal-card" role="dialog" aria-modal="true" aria-labelledby="bulk-purchase-title">
       <div class="bulk-modal-header">
-        <h3 id="bulk-purchase-title">Buy API Keys</h3>
+        <h3 id="bulk-purchase-title">Buy API Access</h3>
         <button class="bulk-modal-close" type="button" aria-label="Close">×</button>
       </div>
       <div class="bulk-modal-body">
         <p class="bulk-modal-api-name">${escapeHtml(api.name)}</p>
         <div class="bulk-modal-meta">
           <span>${formatCoins(api.priceCoins)} coins each</span>
-          <span>${formatCoins(api.availableKeys)} available</span>
+          <span>Shared code included</span>
           <span>Your balance: ${formatCoins(balance)} coins</span>
         </div>
         <label class="bulk-modal-field">
-          <span>How many API keys do you want?</span>
+          <span>How many access periods do you want?</span>
           <input
             type="number"
             id="bulk-purchase-qty"
@@ -147,7 +139,7 @@ function openBulkPurchaseModal(api, onConfirm) {
 
     if (!validStock) {
       errorEl.hidden = false;
-      errorEl.textContent = `Only ${formatCoins(maxByStock)} key${maxByStock === 1 ? '' : 's'} available.`;
+      errorEl.textContent = `Maximum ${formatCoins(maxByStock)} per purchase.`;
       confirmBtn.disabled = true;
       return;
     }
@@ -159,7 +151,7 @@ function openBulkPurchaseModal(api, onConfirm) {
     }
     if (!validMax) {
       errorEl.hidden = false;
-      errorEl.textContent = 'Maximum 100 keys per purchase.';
+      errorEl.textContent = 'Maximum 100 purchases at once.';
       confirmBtn.disabled = true;
       return;
     }
@@ -209,7 +201,7 @@ function renderMarketplaceActions(api) {
         data-available-keys="${api.availableKeys}"
         data-expiration-months="${api.expirationMonths}"
         type="button"
-      >${api.purchased ? 'Buy More Keys' : 'Buy with Coins'}</button>
+      >${api.purchased ? 'Extend Access' : 'Buy with Coins'}</button>
     `);
   }
 
@@ -273,12 +265,12 @@ async function renderMarketplace(containerId, options = {}) {
           <span class="mini-tag">Format: JSON</span>
           <span class="mini-tag mini-tag-amber">${api.priceCoins} coins each</span>
           <span class="mini-tag">${api.expirationMonths} month${api.expirationMonths === 1 ? '' : 's'} access</span>
-          ${api.availableKeys > 0 ? `<span class="mini-tag mini-tag-cyan">${api.availableKeys} keys left</span>` : '<span class="mini-tag">Sold out</span>'}
+          ${api.availableKeys > 0 ? '<span class="mini-tag mini-tag-cyan">Shared code</span>' : '<span class="mini-tag">Unavailable</span>'}
           ${api.purchased ? `<span class="mini-tag">You own ${api.purchasedCount || 1}</span>` : ''}
         </div>
         <div class="endpoint-box">
           <div class="endpoint-title">◎ Secure delivery after purchase</div>
-          <div class="endpoint-url">Buy one or many keys at once. Bulk purchases can be downloaded as a .txt file of code snippets.</div>
+          <div class="endpoint-url">Purchase once and receive the full shared code snippet. Every customer gets the same code.</div>
         </div>
         <div class="card-actions">
           ${renderMarketplaceActions(api)}
@@ -288,7 +280,7 @@ async function renderMarketplace(containerId, options = {}) {
 
     footer.innerHTML = user
       ? `Signed in as <strong>${escapeHtml(user.fullName)}</strong> with <span class="text-cyan">${formatCoins(user.coinBalance)} coins</span>.`
-      : 'Sign in to recharge coins and instantly purchase API keys.';
+      : 'Sign in to recharge coins and instantly purchase API access.';
 
     grid.querySelectorAll('.buy-api-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {

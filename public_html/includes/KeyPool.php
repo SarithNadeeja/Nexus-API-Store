@@ -5,7 +5,6 @@ declare(strict_types=1);
 final class KeyPool
 {
     public const POOL_MARKER = '__pool__';
-    public const MAX_SNIPPET_LENGTH = 10000;
 
     public static function ensureSchema(PDO $pdo): void
     {
@@ -17,16 +16,21 @@ final class KeyPool
             id BIGSERIAL PRIMARY KEY,
             api_listing_id BIGINT NOT NULL,
             key_link TEXT NOT NULL,
+            key_hash CHAR(64),
             status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
             assigned_user_id BIGINT NULL,
             api_purchase_id BIGINT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             assigned_at TIMESTAMP NULL,
             CONSTRAINT fk_api_key_inventory_listing FOREIGN KEY (api_listing_id) REFERENCES api_listings(id) ON DELETE CASCADE,
-            CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id),
-            CONSTRAINT uk_api_key_inventory_link UNIQUE (key_link)
+            CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id)
         )");
         self::safeExec($pdo, 'CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status)');
+        self::safeExec($pdo, 'ALTER TABLE api_key_inventory ADD COLUMN IF NOT EXISTS key_hash CHAR(64)');
+        self::safeExec($pdo, "UPDATE api_key_inventory SET key_hash = encode(digest(key_link, 'sha256'), 'hex') WHERE key_hash IS NULL OR key_hash = ''");
+        self::safeExec($pdo, 'ALTER TABLE api_key_inventory DROP CONSTRAINT IF EXISTS uk_api_key_inventory_link');
+        self::safeExec($pdo, 'DROP INDEX IF EXISTS uk_api_key_inventory_listing_key_hash');
+        self::safeExec($pdo, 'CREATE UNIQUE INDEX IF NOT EXISTS uk_api_key_inventory_listing_key_hash ON api_key_inventory (api_listing_id, key_hash)');
         self::safeExec($pdo, 'ALTER TABLE api_purchases ALTER COLUMN purchased_key_snapshot TYPE TEXT');
         self::safeExec($pdo, 'ALTER TABLE api_purchases ALTER COLUMN access_link_snapshot TYPE TEXT');
         self::safeExec($pdo, 'ALTER TABLE api_key_inventory ALTER COLUMN key_link TYPE TEXT');
@@ -66,7 +70,7 @@ final class KeyPool
         $stmt = $pdo->query($sql);
 
         $check = $pdo->prepare('SELECT id FROM api_key_inventory WHERE api_listing_id = ? LIMIT 1');
-        $insert = $pdo->prepare("INSERT INTO api_key_inventory (api_listing_id, key_link, status) VALUES (?, ?, 'AVAILABLE')");
+        $insert = $pdo->prepare("INSERT INTO api_key_inventory (api_listing_id, key_link, key_hash, status) VALUES (?, ?, ?, 'AVAILABLE') ON CONFLICT (api_listing_id, key_hash) DO NOTHING");
 
         foreach ($stmt->fetchAll() as $row) {
             $listingId = (int) $row['id'];
@@ -82,7 +86,8 @@ final class KeyPool
                 continue;
             }
 
-            $insert->execute([$listingId, $row['api_key_value']]);
+            $snippet = (string) $row['api_key_value'];
+            $insert->execute([$listingId, $snippet, self::snippetHash($snippet)]);
             $pdo->prepare('UPDATE api_listings SET api_key_value = ? WHERE id = ?')->execute([$marker, $listingId]);
         }
     }
@@ -105,9 +110,6 @@ final class KeyPool
             if ($snippet === '' || str_starts_with($snippet, '#')) {
                 continue;
             }
-            if (strlen($snippet) > self::MAX_SNIPPET_LENGTH) {
-                throw new InvalidArgumentException('Each code snippet must be ' . self::MAX_SNIPPET_LENGTH . ' characters or fewer.');
-            }
             $snippets[] = $snippet;
         }
 
@@ -127,13 +129,22 @@ final class KeyPool
     public static function addKeys(PDO $pdo, int $listingId, array $links): int
     {
         self::ensureSchema($pdo);
-        $insert = $pdo->prepare("INSERT INTO api_key_inventory (api_listing_id, key_link, status) VALUES (?, ?, 'AVAILABLE') ON CONFLICT (key_link) DO NOTHING");
+        $insert = $pdo->prepare(
+            "INSERT INTO api_key_inventory (api_listing_id, key_link, key_hash, status)
+             VALUES (?, ?, ?, 'AVAILABLE')
+             ON CONFLICT (api_listing_id, key_hash) DO NOTHING"
+        );
         $added = 0;
         foreach ($links as $link) {
-            $insert->execute([$listingId, $link]);
+            $insert->execute([$listingId, $link, self::snippetHash((string) $link)]);
             $added += $insert->rowCount();
         }
         return $added;
+    }
+
+    private static function snippetHash(string $snippet): string
+    {
+        return hash('sha256', $snippet);
     }
 
     public static function countsForListing(PDO $pdo, int $listingId): array

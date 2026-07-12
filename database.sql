@@ -27,17 +27,18 @@ CREATE TABLE IF NOT EXISTS api_key_inventory (
     id BIGSERIAL PRIMARY KEY,
     api_listing_id BIGINT NOT NULL,
     key_link TEXT NOT NULL,
+    key_hash CHAR(64),
     status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
     assigned_user_id BIGINT NULL,
     api_purchase_id BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     assigned_at TIMESTAMP NULL,
     CONSTRAINT fk_api_key_inventory_listing FOREIGN KEY (api_listing_id) REFERENCES api_listings(id) ON DELETE CASCADE,
-    CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id),
-    CONSTRAINT uk_api_key_inventory_link UNIQUE (key_link)
+    CONSTRAINT fk_api_key_inventory_user FOREIGN KEY (assigned_user_id) REFERENCES app_users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_api_key_inventory_listing_status ON api_key_inventory (api_listing_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_api_key_inventory_listing_key_hash ON api_key_inventory (api_listing_id, key_hash);
 
 CREATE TABLE IF NOT EXISTS admin_users (
     id BIGSERIAL PRIMARY KEY,
